@@ -27,7 +27,8 @@ export class AuthService {
     const user = await this.usersService.create(registerDto);
     // eslint-disable-next-line no-console
     console.log('AuthService.register created user:', user);
-    const token = this.generateToken(user._id, user.name);
+    const userId = (user as any)._id?.toString?.() ?? (user as any).id;
+    const token = this.generateToken(userId, user.name);
 
     return {
       success: true,
@@ -46,9 +47,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    await this.usersService.updateLastLogin(user._id);
+    const userId = (user as any)._id?.toString?.() ?? (user as any).id;
+    await this.usersService.updateLastLogin(userId);
 
-    const token = this.generateToken(user._id, user.name);
+    const token = this.generateToken(userId, user.name);
 
     return {
       success: true,

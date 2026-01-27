@@ -1,19 +1,48 @@
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
+
+@Schema({ timestamps: true })
 export class Recipe {
-  _id: string;
+  @Prop({ required: true })
   userId: string;
+
+  @Prop({ required: true })
   title: string;
+
+  @Prop({ required: true })
   description: string;
+
+  @Prop({ type: [String], default: [] })
   ingredients: string[];
+
+  @Prop({ type: [String], default: [] })
   instructions: string[];
+
+  @Prop({ required: true })
   category: string;
+
+  @Prop({ required: true })
   prepTime: number;
+
+  @Prop({ required: true })
   cookTime: number;
+
+  @Prop({ required: true })
   servings: number;
+
+  @Prop({ enum: ['easy', 'medium', 'hard'], required: true })
   difficulty: 'easy' | 'medium' | 'hard';
+
+  @Prop()
   imageUrl?: string;
+
+  @Prop({ default: false })
   isFavorite: boolean;
+
+  @Prop()
   rating?: number;
-  createdAt: Date;
-  updatedAt: Date;
 }
+
+export type RecipeDocument = Recipe & Document;
+export const RecipeSchema = SchemaFactory.createForClass(Recipe);
 

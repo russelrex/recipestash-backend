@@ -6,6 +6,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { RecipesModule } from './modules/recipes/recipes.module';
+import { PostsModule } from './modules/posts/posts.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { RecipesModule } from './modules/recipes/recipes.module';
 
         return {
           uri: mongoUri,
+          dbName: 'recipestash',
           serverSelectionTimeoutMS: 5000,
           socketTimeoutMS: 45000,
           connectTimeoutMS: 10000,
@@ -41,6 +43,7 @@ import { RecipesModule } from './modules/recipes/recipes.module';
     AuthModule,
     UsersModule,
     RecipesModule,
+    PostsModule,
   ],
 })
 export class AppModule {}

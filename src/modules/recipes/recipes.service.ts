@@ -1,31 +1,32 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Recipe } from './entities/recipe.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Recipe, RecipeDocument } from './entities/recipe.entity';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
 
 @Injectable()
 export class RecipesService {
-  private recipes: Recipe[] = [];
+  constructor(
+    @InjectModel(Recipe.name)
+    private readonly recipeModel: Model<RecipeDocument>,
+  ) {}
 
   async create(createRecipeDto: CreateRecipeDto): Promise<Recipe> {
-    const recipe: Recipe = {
-      _id: Date.now().toString(),
+    const createdRecipe = new this.recipeModel({
       ...createRecipeDto,
-      isFavorite: createRecipeDto.isFavorite || false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+      isFavorite: createRecipeDto.isFavorite ?? false,
+    });
 
-    this.recipes.push(recipe);
-    return recipe;
+    return createdRecipe.save();
   }
 
   async findAll(userId: string): Promise<Recipe[]> {
-    return this.recipes.filter((recipe) => recipe.userId === userId);
+    return this.recipeModel.find({ userId }).exec();
   }
 
   async findOne(id: string): Promise<Recipe> {
-    const recipe = this.recipes.find((r) => r._id === id);
+    const recipe = await this.recipeModel.findById(id).exec();
     if (!recipe) {
       throw new NotFoundException('Recipe not found');
     }
@@ -33,53 +34,60 @@ export class RecipesService {
   }
 
   async findByCategory(userId: string, category: string): Promise<Recipe[]> {
-    return this.recipes.filter(
-      (recipe) =>
-        recipe.userId === userId &&
-        recipe.category.toLowerCase() === category.toLowerCase(),
-    );
+    return this.recipeModel
+      .find({
+        userId,
+        category: new RegExp(`^${category}$`, 'i'),
+      })
+      .exec();
   }
 
   async findFavorites(userId: string): Promise<Recipe[]> {
-    return this.recipes.filter(
-      (recipe) => recipe.userId === userId && recipe.isFavorite === true,
-    );
+    return this.recipeModel.find({ userId, isFavorite: true }).exec();
   }
 
   async search(userId: string, query: string): Promise<Recipe[]> {
     const lowerQuery = query.toLowerCase();
-    return this.recipes.filter(
-      (recipe) =>
-        recipe.userId === userId &&
-        (recipe.title.toLowerCase().includes(lowerQuery) ||
-          recipe.description.toLowerCase().includes(lowerQuery) ||
-          recipe.category.toLowerCase().includes(lowerQuery)),
-    );
+    return this.recipeModel
+      .find({
+        userId,
+        $or: [
+          { title: { $regex: lowerQuery, $options: 'i' } },
+          { description: { $regex: lowerQuery, $options: 'i' } },
+          { category: { $regex: lowerQuery, $options: 'i' } },
+        ],
+      })
+      .exec();
   }
 
   async update(id: string, updateRecipeDto: UpdateRecipeDto): Promise<Recipe> {
-    const recipe = await this.findOne(id);
-    Object.assign(recipe, { ...updateRecipeDto, updatedAt: new Date() });
+    const recipe = await this.recipeModel
+      .findByIdAndUpdate(id, { ...updateRecipeDto }, { new: true })
+      .exec();
+    if (!recipe) {
+      throw new NotFoundException('Recipe not found');
+    }
     return recipe;
   }
 
   async toggleFavorite(id: string): Promise<Recipe> {
-    const recipe = await this.findOne(id);
+    const recipe = await this.recipeModel.findById(id).exec();
+    if (!recipe) {
+      throw new NotFoundException('Recipe not found');
+    }
     recipe.isFavorite = !recipe.isFavorite;
-    recipe.updatedAt = new Date();
-    return recipe;
+    return recipe.save();
   }
 
   async remove(id: string): Promise<void> {
-    const index = this.recipes.findIndex((r) => r._id === id);
-    if (index === -1) {
+    const res = await this.recipeModel.deleteOne({ _id: id }).exec();
+    if (!res.deletedCount) {
       throw new NotFoundException('Recipe not found');
     }
-    this.recipes.splice(index, 1);
   }
 
   async getStats(userId: string) {
-    const userRecipes = this.recipes.filter((r) => r.userId === userId);
+    const userRecipes = await this.recipeModel.find({ userId }).exec();
     const favorites = userRecipes.filter((r) => r.isFavorite);
 
     return {
