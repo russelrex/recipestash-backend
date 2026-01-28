@@ -5,6 +5,7 @@ import { PostsService } from './posts.service';
 import { Post, PostSchema, Comment, CommentSchema } from './entities/post.entity';
 import { RecipesModule } from '../recipes/recipes.module';
 import { UsersModule } from '../users/users.module';
+import { FollowsModule } from '../follows/follows.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { UsersModule } from '../users/users.module';
     ]),
     RecipesModule,
     UsersModule,
+    FollowsModule,
   ],
   controllers: [PostsController],
   providers: [PostsService],
