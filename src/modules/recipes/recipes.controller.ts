@@ -23,8 +23,9 @@ export class RecipesController {
   @Post()
   @UseGuards(JwtAuthGuard)
   async create(@Body() createRecipeDto: CreateRecipeDto, @Request() req) {
+    createRecipeDto.ownerId = req.user.ownerId;
+    createRecipeDto.ownerName = req.user.ownerName;
     createRecipeDto.userId = req.user.userId;
-
     const recipe = await this.recipesService.create(createRecipeDto);
     return {
       success: true,
@@ -54,17 +55,9 @@ export class RecipesController {
   @Get('stats')
   @UseGuards(OptionalJwtAuthGuard)
   async getStats(@Request() req) {
-    // If no user is authenticated, return empty stats
-    if (!req.user || !req.user.userId) {
-      return {
-        success: true,
-        data: {
-          totalRecipes: 0,
-          favoriteRecipes: 0,
-          categoryCounts: {},
-        },
-      };
-    }
+    console.log('[getStats] getStats', {
+      req,
+    });
     
     const stats = await this.recipesService.getStats(req.user.userId);
     return {

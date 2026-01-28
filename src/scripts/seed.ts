@@ -83,7 +83,8 @@ async function bootstrap() {
     const recipes = [
       // User 1 Recipes
       {
-        userId: userId1,
+        ownerId: userId1,
+        ownerName: user1.name,
         title: 'Classic Chocolate Chip Cookies',
         description: 'Soft and chewy chocolate chip cookies that are perfect for any occasion.',
         ingredients: [
@@ -271,7 +272,11 @@ async function bootstrap() {
 
     for (const recipeData of recipes) {
       try {
-        const recipe = await recipesService.create(recipeData);
+        const recipe = await recipesService.create({
+          ...recipeData,
+          ownerId: userId1,
+          ownerName: user1.name,
+        });
         // eslint-disable-next-line no-console
         console.log(`✅ Created recipe: ${recipe.title}`);
         createdCount++;

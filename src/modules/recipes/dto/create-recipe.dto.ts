@@ -11,7 +11,15 @@ import {
 export class CreateRecipeDto {
   @IsString()
   @IsNotEmpty()
-  userId: string;
+  ownerId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  ownerName: string;
+
+  @IsString()
+  @IsOptional()
+  userId?: string;
 
   @IsString()
   @IsNotEmpty()
