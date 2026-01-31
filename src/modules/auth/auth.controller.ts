@@ -19,21 +19,45 @@ export class AuthController {
 
   @Post('register')
   async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+    try {
+      const result = await this.authService.register(registerDto);
+      return result;
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'Registration failed',
+      };
+    }
   }
 
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+    try {
+      // eslint-disable-next-line no-console
+      console.log('[AuthController] Login attempt for:', loginDto.email);
+      const result = await this.authService.login(loginDto);
+      // eslint-disable-next-line no-console
+      console.log('[AuthController] Login successful');
+      return result;
+    } catch (error: any) {
+      // eslint-disable-next-line no-console
+      console.error('[AuthController] Login error:', error);
+      return {
+        success: false,
+        message: error.message || 'Login failed',
+      };
+    }
   }
 
   @Post('validate')
-  async validateToken(@Headers('authorization') authorization: string) {
-    if (!authorization) {
-      throw new UnauthorizedException('No token provided');
+  async validateToken(@Body('token') token: string) {
+    if (!token) {
+      return {
+        success: false,
+        valid: false,
+        message: 'No token provided',
+      };
     }
-
-    const token = authorization.replace('Bearer ', '');
     return this.authService.validateToken(token);
   }
 

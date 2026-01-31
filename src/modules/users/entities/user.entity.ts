@@ -6,8 +6,11 @@ export class User {
   @Prop({ required: true })
   name: string;
 
+  @Prop({ required: true, unique: true, lowercase: true })
+  email: string;
+
   @Prop({ required: true })
-  passwordHash: string;
+  password: string; // Hashed password
 
   @Prop()
   lastLoginAt?: Date;

@@ -8,6 +8,8 @@ import { UsersModule } from './modules/users/users.module';
 import { RecipesModule } from './modules/recipes/recipes.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { FollowsModule } from './modules/follows/follows.module';
+import { AppConfigModule } from './modules/config/config.module';
+import { S3Module } from './common/services/s3.module';
 
 @Module({
   imports: [
@@ -41,11 +43,13 @@ import { FollowsModule } from './modules/follows/follows.module';
       },
       inject: [ConfigService],
     }),
+    S3Module,
     AuthModule,
     UsersModule,
     RecipesModule,
     PostsModule,
     FollowsModule,
+    AppConfigModule,
   ],
 })
 export class AppModule {}

@@ -27,23 +27,29 @@ async function bootstrap() {
 
     const user1Data = {
       name: 'Alice',
+      email: 'alice@example.com',
+      password: 'password123',
     };
     const user2Data = {
       name: 'Bob',
+      email: 'bob@example.com',
+      password: 'password123',
     };
     const user3Data = {
       name: 'Charlie',
+      email: 'charlie@example.com',
+      password: 'password123',
     };
 
     let user1, user2, user3;
 
     // Check if users already exist
-    const existingUser1 = await usersService.findByName(user1Data.name);
-    const existingUser2 = await usersService.findByName(user2Data.name);
-    const existingUser3 = await usersService.findByName(user3Data.name);
+    const existingUser1 = await usersService.findByEmail(user1Data.email);
+    const existingUser2 = await usersService.findByEmail(user2Data.email);
+    const existingUser3 = await usersService.findByEmail(user3Data.email);
 
     if (!existingUser1) {
-      user1 = await usersService.create(user1Data);
+      user1 = await usersService.create(user1Data.name, user1Data.email, user1Data.password);
       // eslint-disable-next-line no-console
       console.log(`✅ Created user: ${user1.name} (ID: ${(user1 as any)._id})`);
     } else {
@@ -53,7 +59,7 @@ async function bootstrap() {
     }
 
     if (!existingUser2) {
-      user2 = await usersService.create(user2Data);
+      user2 = await usersService.create(user2Data.name, user2Data.email, user2Data.password);
       // eslint-disable-next-line no-console
       console.log(`✅ Created user: ${user2.name} (ID: ${(user2 as any)._id})`);
     } else {
@@ -63,7 +69,7 @@ async function bootstrap() {
     }
 
     if (!existingUser3) {
-      user3 = await usersService.create(user3Data);
+      user3 = await usersService.create(user3Data.name, user3Data.email, user3Data.password);
       // eslint-disable-next-line no-console
       console.log(`✅ Created user: ${user3.name} (ID: ${(user3 as any)._id})`);
     } else {

@@ -16,18 +16,15 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    // eslint-disable-next-line no-console
-    console.log('AuthService.register called with:', registerDto);
-    const existingUser = await this.usersService.findByName(registerDto.name);
+    try {
+      const user = await this.usersService.create(
+        registerDto.name,
+        registerDto.email,
+        registerDto.password,
+      );
 
-    if (existingUser) {
-      throw new ConflictException('User with this name already exists');
-    }
-
-    const user = await this.usersService.create(registerDto);
-    // eslint-disable-next-line no-console
-    console.log('AuthService.register created user:', user);
     const userId = (user as any)._id?.toString?.() ?? (user as any).id;
+      const payload = { sub: userId, email: user.email, name: user.name };
     const token = this.generateToken(userId, user.name);
 
     return {
@@ -38,18 +35,31 @@ export class AuthService {
         token,
       },
     };
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+      throw new ConflictException('Registration failed');
+    }
   }
 
   async login(loginDto: LoginDto) {
-    const user = await this.usersService.validateUser(loginDto.name);
+    const user = await this.usersService.findByEmail(loginDto.email);
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const isPasswordValid = await this.usersService.validatePassword(user, loginDto.password);
+    
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid email or password');
     }
 
     const userId = (user as any)._id?.toString?.() ?? (user as any).id;
     await this.usersService.updateLastLogin(userId);
 
+    const payload = { sub: userId, email: user.email, name: user.name };
     const token = this.generateToken(userId, user.name);
 
     return {
@@ -72,15 +82,32 @@ export class AuthService {
 
   async validateToken(token: string) {
     try {
-      const payload = this.jwtService.verify(token);
-      const user = await this.usersService.findOne(payload.sub);
+      const decoded = this.jwtService.verify(token);
+      const user = await this.usersService.findOne(decoded.sub);
 
       return {
         success: true,
+        valid: true,
         data: {
           user: this.usersService.sanitizeUser(user),
         },
       };
+    } catch {
+      return {
+        success: false,
+        valid: false,
+        data: {
+          user: null,
+        },
+      };
+    }
+  }
+
+  async getUserFromToken(token: string) {
+    try {
+      const decoded = this.jwtService.verify(token);
+      const user = await this.usersService.findOne(decoded.sub);
+      return this.usersService.sanitizeUser(user);
     } catch {
       throw new UnauthorizedException('Invalid token');
     }

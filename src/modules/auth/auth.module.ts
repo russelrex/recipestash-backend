@@ -19,7 +19,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
         console.log('[AuthModule] JWT secret preview', secret ? secret.slice(0, 4) + '...' : null);
         return {
           secret,
-          signOptions: { expiresIn: '7d' },
+      signOptions: { expiresIn: '7d' },
         };
       },
     }),

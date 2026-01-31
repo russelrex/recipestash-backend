@@ -4,7 +4,13 @@ import { Document } from 'mongoose';
 @Schema({ timestamps: true })
 export class Recipe {
   @Prop({ required: true })
-  userId: string;
+  ownerId: string;
+
+  @Prop({ required: true })
+  ownerName: string;
+
+  @Prop()
+  userId?: string;
 
   @Prop({ required: true })
   title: string;
@@ -34,7 +40,10 @@ export class Recipe {
   difficulty: 'easy' | 'medium' | 'hard';
 
   @Prop()
-  imageUrl?: string;
+  featuredImage?: string;
+
+  @Prop({ type: [String], default: [] })
+  images?: string[];
 
   @Prop({ default: false })
   isFavorite: boolean;

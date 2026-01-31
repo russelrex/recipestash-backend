@@ -1,8 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from './entities/user.entity';
-import { RegisterDto } from '../auth/dto/register.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -11,15 +10,31 @@ export class UsersService {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {}
 
-  async create(registerDto: RegisterDto): Promise<User> {
-    const passwordHash = await bcrypt.hash(registerDto.name, 10);
+  async create(name: string, email: string, password: string): Promise<User> {
+    // Check if email already exists
+    const existingUser = await this.findByEmail(email);
+    if (existingUser) {
+      throw new ConflictException('Email already exists');
+    }
+
+    // Hash password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     const createdUser = new this.userModel({
-      name: registerDto.name,
-      passwordHash,
+      name,
+      email: email.toLowerCase(),
+      password: hashedPassword,
     });
 
     return createdUser.save();
+  }
+
+  async findByEmail(email: string): Promise<User | undefined> {
+    const user = await this.userModel
+      .findOne({ email: email.toLowerCase() })
+      .exec();
+    return user ?? undefined;
   }
 
   async findOne(id: string): Promise<User> {
@@ -70,16 +85,12 @@ export class UsersService {
     }
   }
 
-  async validateUser(name: string): Promise<User | null> {
-    const user = await this.findByName(name);
-    if (user) {
-      return user;
-    }
-    return null;
+  async validatePassword(user: User, password: string): Promise<boolean> {
+    return await bcrypt.compare(password, user.password);
   }
 
-  sanitizeUser(user: User): Omit<User, 'passwordHash'> {
-    const { passwordHash, ...sanitized } = (user as any).toObject
+  sanitizeUser(user: User): Omit<User, 'password'> {
+    const { password, ...sanitized } = (user as any).toObject
       ? (user as any).toObject()
       : user;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

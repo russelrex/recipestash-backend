@@ -63,6 +63,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
+    // eslint-disable-next-line no-console
     console.log('[JwtStrategy] validate', {
       payload,
     });
@@ -71,19 +72,24 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
     
     try {
-      const user = await this.usersService.findOne(payload.sub);
+    const user = await this.usersService.findOne(payload.sub);
+      // eslint-disable-next-line no-console
       console.log('[JwtStrategy] user', {
         user,
       });
-      if (!user) {
+    if (!user) {
         throw new UnauthorizedException('User not found');
-      }
-      return { userId: payload.sub, name: payload.name };
+    }
+      return {
+        userId: payload.sub,
+        email: user.email,
+        name: user.name,
+      };
     } catch (error) {
       if (error instanceof UnauthorizedException) {
         throw error;
       }
       throw new UnauthorizedException('Failed to validate user');
-    }
   }
+}
 }

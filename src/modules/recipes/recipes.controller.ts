@@ -23,8 +23,8 @@ export class RecipesController {
   @Post()
   @UseGuards(JwtAuthGuard)
   async create(@Body() createRecipeDto: CreateRecipeDto, @Request() req) {
-    createRecipeDto.ownerId = req.user.ownerId;
-    createRecipeDto.ownerName = req.user.ownerName;
+    createRecipeDto.ownerId = req.user.userId;
+    createRecipeDto.ownerName = req.user.name;
     createRecipeDto.userId = req.user.userId;
     const recipe = await this.recipesService.create(createRecipeDto);
     return {
@@ -55,9 +55,17 @@ export class RecipesController {
   @Get('stats')
   @UseGuards(OptionalJwtAuthGuard)
   async getStats(@Request() req) {
-    console.log('[getStats] getStats', {
-      req,
-    });
+    // If no user is authenticated, return empty stats
+    if (!req.user || !req.user.userId) {
+      return {
+        success: true,
+        data: {
+          totalRecipes: 0,
+          favoriteRecipes: 0,
+          categoryCounts: {},
+        },
+      };
+    }
     
     const stats = await this.recipesService.getStats(req.user.userId);
     return {
@@ -113,8 +121,9 @@ export class RecipesController {
   async update(
     @Param('id') id: string,
     @Body() updateRecipeDto: UpdateRecipeDto,
+    @Request() req,
   ) {
-    const recipe = await this.recipesService.update(id, updateRecipeDto);
+    const recipe = await this.recipesService.update(id, req.user.userId, updateRecipeDto);
     return {
       success: true,
       message: 'Recipe updated successfully',
@@ -124,8 +133,8 @@ export class RecipesController {
 
   @Patch(':id/favorite')
   @UseGuards(JwtAuthGuard)
-  async toggleFavorite(@Param('id') id: string) {
-    const recipe = await this.recipesService.toggleFavorite(id);
+  async toggleFavorite(@Param('id') id: string, @Request() req) {
+    const recipe = await this.recipesService.toggleFavorite(id, req.user.userId);
     return {
       success: true,
       message: 'Favorite status updated',
@@ -135,8 +144,8 @@ export class RecipesController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  async remove(@Param('id') id: string) {
-    await this.recipesService.remove(id);
+  async remove(@Param('id') id: string, @Request() req) {
+    await this.recipesService.remove(id, req.user.userId);
     return {
       success: true,
       message: 'Recipe deleted successfully',

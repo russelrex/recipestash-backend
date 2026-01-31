@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsOptional,
   IsBoolean,
+  ArrayMaxSize,
 } from 'class-validator';
 
 export class CreateRecipeDto {
@@ -55,7 +56,13 @@ export class CreateRecipeDto {
 
   @IsString()
   @IsOptional()
-  imageUrl?: string;
+  featuredImage?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(5)
+  @IsOptional()
+  images?: string[];
 
   @IsBoolean()
   @IsOptional()
