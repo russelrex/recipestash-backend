@@ -14,6 +14,12 @@ export class User {
 
   @Prop()
   lastLoginAt?: Date;
+
+  @Prop()
+  bio?: string;
+
+  @Prop()
+  avatarUrl?: string; // public S3 URL
 }
 
 export type UserDocument = User & Document;
