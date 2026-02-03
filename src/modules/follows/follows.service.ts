@@ -10,6 +10,8 @@ import { Follow, FollowDocument, FollowStats } from './entities/follow.entity';
 
 @Injectable()
 export class FollowsService {
+  private blockedUsers: { blockerId: string; blockedId: string; blockedAt: Date }[] = [];
+
   constructor(
     @InjectModel(Follow.name)
     private readonly followModel: Model<FollowDocument>,
@@ -150,6 +152,44 @@ export class FollowsService {
     );
 
     return suggestedUsers;
+  }
+
+  async blockUser(blockerId: string, blockedId: string): Promise<{ blockerId: string; blockedId: string; blockedAt: string }> {
+    if (blockerId === blockedId) {
+      throw new ConflictException('You cannot block yourself');
+    }
+    const exists = this.blockedUsers.find(b => b.blockerId === blockerId && b.blockedId === blockedId);
+    if (exists) {
+      throw new ConflictException('User is already blocked');
+    }
+    const entry = { blockerId, blockedId, blockedAt: new Date() };
+    this.blockedUsers.push(entry);
+    // Auto-unfollow in both directions
+    await this.unfollow(blockerId, blockedId).catch(() => {});
+    await this.unfollow(blockedId, blockerId).catch(() => {});
+    return { ...entry, blockedAt: entry.blockedAt.toISOString() };
+  }
+
+  async unblockUser(blockerId: string, blockedId: string): Promise<void> {
+    const idx = this.blockedUsers.findIndex(b => b.blockerId === blockerId && b.blockedId === blockedId);
+    if (idx === -1) {
+      throw new NotFoundException('Block not found');
+    }
+    this.blockedUsers.splice(idx, 1);
+  }
+
+  async getBlockedUsers(blockerId: string): Promise<{ id: string; name: string; blockedAt: string }[]> {
+    const blocked = this.blockedUsers.filter(b => b.blockerId === blockerId);
+    return Promise.all(blocked.map(async b => {
+      const user = await this.usersService.findOne(b.blockedId);
+      const userDoc = user as any;
+      const userId = userDoc._id ? userDoc._id.toString() : userDoc.id || b.blockedId;
+      return { id: userId, name: user.name, blockedAt: b.blockedAt.toISOString() };
+    }));
+  }
+
+  async isBlocked(blockerId: string, blockedId: string): Promise<boolean> {
+    return this.blockedUsers.some(b => b.blockerId === blockerId && b.blockedId === blockedId);
   }
 }
 

@@ -15,7 +15,7 @@ import { S3Module } from './common/services/s3.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: process.env.NODE_ENV === 'production' ? '.env' : '.env.local',
     }),
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
@@ -23,8 +23,8 @@ import { S3Module } from './common/services/s3.module';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
         const mongoUri =
-          configService.get<string>('MONGODB_URI') ??
-          configService.get<string>('MONGODB_URL');
+        configService.get<string>('MONGODB_URL') ??
+          null;
 
         if (!mongoUri) {
           throw new Error('MONGODB_URI or MONGODB_URL environment variable is required');
@@ -32,7 +32,7 @@ import { S3Module } from './common/services/s3.module';
 
         return {
           uri: mongoUri,
-          dbName: 'recipestash',
+          dbName: configService.get<string>('MONGODB_NAME')  || '',
           serverSelectionTimeoutMS: 5000,
           socketTimeoutMS: 45000,
           connectTimeoutMS: 10000,

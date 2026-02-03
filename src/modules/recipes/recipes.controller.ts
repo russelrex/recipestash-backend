@@ -151,6 +151,19 @@ export class RecipesController {
       message: 'Recipe deleted successfully',
     };
   }
+
+  @Post('import')
+  @UseGuards(JwtAuthGuard)
+  async importRecipes(@Body() body: { recipes: any[] }, @Request() req) {
+    try {
+      // Strip image fields from every entry so the import is text-only
+      const sanitised = (body.recipes || []).map(({ featuredImage, images, _id, id, userId, isFavorite, createdAt, updatedAt, featured, ...rest }) => rest);
+      const created = await this.recipesService.bulkCreate(req.user.userId, sanitised);
+      return { success: true, message: `Imported ${created.length} recipe(s)`, data: created };
+    } catch (error: any) {
+      return { success: false, message: error.message || 'Import failed' };
+    }
+  }
 }
 
 

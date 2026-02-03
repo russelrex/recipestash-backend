@@ -160,5 +160,42 @@ export class UsersService {
 
     return updatedUser;
   }
+
+  async updatePreferences(userId: string, prefs: {
+    notificationsEnabled?: boolean;
+    dietaryRestrictions?: string[];
+    measurementUnit?: 'metric' | 'imperial';
+    privacyProfilePublic?: boolean;
+  }): Promise<User> {
+    const user = await this.findOne(userId);
+    const updateData: Partial<User> = {};
+
+    if (prefs.notificationsEnabled !== undefined) {
+      updateData.notificationsEnabled = prefs.notificationsEnabled;
+    }
+    if (prefs.dietaryRestrictions !== undefined) {
+      updateData.dietaryRestrictions = prefs.dietaryRestrictions;
+    }
+    if (prefs.measurementUnit !== undefined) {
+      updateData.measurementUnit = prefs.measurementUnit;
+    }
+    if (prefs.privacyProfilePublic !== undefined) {
+      updateData.privacyProfilePublic = prefs.privacyProfilePublic;
+    }
+
+    const updatedUser = await this.userModel
+      .findByIdAndUpdate(
+        userId,
+        updateData,
+        { new: true, runValidators: true },
+      )
+      .exec();
+
+    if (!updatedUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    return updatedUser;
+  }
 }
 

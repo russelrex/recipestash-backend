@@ -48,6 +48,9 @@ export class Recipe {
   @Prop({ default: false })
   isFavorite: boolean;
 
+  @Prop({ default: false })
+  featured: boolean;
+
   @Prop()
   rating?: number;
 }

@@ -59,5 +59,36 @@ export class UsersController {
       message: 'User deleted successfully',
     };
   }
+
+  @Get('preferences')
+  @UseGuards(JwtAuthGuard)
+  async getPreferences(@Request() req) {
+    const user = await this.usersService.findOne(req.user.userId);
+    return {
+      success: true,
+      data: {
+        notificationsEnabled: user.notificationsEnabled ?? true,
+        dietaryRestrictions: user.dietaryRestrictions ?? [],
+        measurementUnit: user.measurementUnit ?? 'metric',
+        privacyProfilePublic: user.privacyProfilePublic ?? true,
+      },
+    };
+  }
+
+  @Put('preferences')
+  @UseGuards(JwtAuthGuard)
+  async updatePreferences(@Request() req, @Body() body: any) {
+    const user = await this.usersService.updatePreferences(req.user.userId, body);
+    return {
+      success: true,
+      message: 'Preferences updated',
+      data: {
+        notificationsEnabled: user.notificationsEnabled ?? true,
+        dietaryRestrictions: user.dietaryRestrictions ?? [],
+        measurementUnit: user.measurementUnit ?? 'metric',
+        privacyProfilePublic: user.privacyProfilePublic ?? true,
+      },
+    };
+  }
 }
 

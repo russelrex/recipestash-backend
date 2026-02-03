@@ -131,5 +131,26 @@ export class FollowsController {
       data: following,
     };
   }
+
+  @Post('block/:userId')
+  @UseGuards(JwtAuthGuard)
+  async blockUser(@Param('userId') userId: string, @Request() req: any) {
+    const result = await this.followsService.blockUser(req.user.userId, userId);
+    return { success: true, message: 'User blocked', data: result };
+  }
+
+  @Delete('block/:userId')
+  @UseGuards(JwtAuthGuard)
+  async unblockUser(@Param('userId') userId: string, @Request() req: any) {
+    await this.followsService.unblockUser(req.user.userId, userId);
+    return { success: true, message: 'User unblocked' };
+  }
+
+  @Get('blocked')
+  @UseGuards(JwtAuthGuard)
+  async getBlockedUsers(@Request() req: any) {
+    const list = await this.followsService.getBlockedUsers(req.user.userId);
+    return { success: true, data: list };
+  }
 }
 

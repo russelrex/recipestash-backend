@@ -6,6 +6,7 @@ import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
 import { S3Service } from '../../common/services/s3.service';
 import { ImageUploadConfig } from '../../common/config/image-upload.config';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class RecipesService {
@@ -13,6 +14,7 @@ export class RecipesService {
     @InjectModel(Recipe.name)
     private readonly recipeModel: Model<RecipeDocument>,
     private readonly s3Service: S3Service,
+    private readonly usersService: UsersService,
   ) {}
 
   async create(createRecipeDto: CreateRecipeDto): Promise<Recipe> {
@@ -72,6 +74,7 @@ export class RecipesService {
       featuredImage: featuredImageUrl,
       images: imageUrls,
       isFavorite: createRecipeDto.isFavorite ?? false,
+      featured: createRecipeDto.featured ?? false,
     });
 
     // eslint-disable-next-line no-console
@@ -224,6 +227,46 @@ export class RecipesService {
       acc[recipe.category] = (acc[recipe.category] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
+  }
+
+  async bulkCreate(userId: string, recipes: Array<{
+    title: string;
+    description: string;
+    ingredients: string[];
+    instructions: string[];
+    category: string;
+    prepTime: number;
+    cookTime: number;
+    servings: number;
+    difficulty: 'easy' | 'medium' | 'hard';
+  }>): Promise<Recipe[]> {
+    const user = await this.usersService.findOne(userId);
+    const created: Recipe[] = [];
+
+    for (const dto of recipes) {
+      const recipe = new this.recipeModel({
+        ownerId: userId,
+        ownerName: user.name,
+        userId: userId,
+        title: dto.title,
+        description: dto.description,
+        ingredients: dto.ingredients,
+        instructions: dto.instructions,
+        category: dto.category,
+        prepTime: dto.prepTime,
+        cookTime: dto.cookTime,
+        servings: dto.servings,
+        difficulty: dto.difficulty,
+        featuredImage: undefined,
+        images: [],
+        isFavorite: false,
+        featured: false,
+      });
+      const saved = await recipe.save();
+      created.push(saved);
+    }
+
+    return created;
   }
 }
 

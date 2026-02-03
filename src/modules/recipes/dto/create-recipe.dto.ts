@@ -68,6 +68,10 @@ export class CreateRecipeDto {
   @IsOptional()
   isFavorite?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  featured?: boolean;
+
   @IsNumber()
   @IsOptional()
   rating?: number;
