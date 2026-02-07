@@ -4,17 +4,29 @@ import { UsersService } from '../modules/users/users.service';
 import { RecipesService } from '../modules/recipes/recipes.service';
 import { PostsService } from '../modules/posts/posts.service';
 import * as bcrypt from 'bcrypt';
+import { Connection } from 'mongoose';
+import { getConnectionToken } from '@nestjs/mongoose';
 
 async function bootstrap() {
-  const app = await NestFactory.createApplicationContext(AppModule);
-
-  const usersService = app.get(UsersService);
-  const recipesService = app.get(RecipesService);
-  const postsService = app.get(PostsService);
-
+  let app;
   try {
-    // eslint-disable-next-line no-console
-    console.log('🌱 Starting database seed...');
+    console.log('🌱 Starting database seeding...');
+    
+    // Debug: Show what we're connecting to
+    console.log('📍 MONGODB_URL:', process.env.MONGODB_URL);
+    console.log('📍 MONGODB_NAME:', process.env.MONGODB_NAME);
+    
+    app = await NestFactory.createApplicationContext(AppModule);
+    const connection = app.get(getConnectionToken()) as Connection;
+
+    // Debug: Show actual connection
+    console.log('📍 Connected to host:', connection.host);
+    console.log('📍 Connected to database:', connection.name);
+    console.log('📍 Connection ready state:', connection.readyState); // 1 = connected
+
+    const usersService = app.get(UsersService);
+    const recipesService = app.get(RecipesService);
+    const postsService = app.get(PostsService);
 
     // Clear existing data (optional - comment out if you want to keep existing data)
     // eslint-disable-next-line no-console
@@ -357,7 +369,9 @@ async function bootstrap() {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('❌ Error seeding database:', error);
-    await app.close();
+    if (app) {
+      await app.close();
+    }
     process.exit(1);
   }
 }

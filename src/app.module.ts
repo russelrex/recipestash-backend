@@ -10,6 +10,7 @@ import { PostsModule } from './modules/posts/posts.module';
 import { FollowsModule } from './modules/follows/follows.module';
 import { AppConfigModule } from './modules/config/config.module';
 import { S3Module } from './common/services/s3.module';
+import { CacheModule } from './common/cache/cache.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { S3Module } from './common/services/s3.module';
       },
       inject: [ConfigService],
     }),
+    CacheModule,
     S3Module,
     AuthModule,
     UsersModule,

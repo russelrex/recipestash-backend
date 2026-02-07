@@ -1,12 +1,17 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { Recipe, RecipeDocument } from './entities/recipe.entity';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
 import { S3Service } from '../../common/services/s3.service';
 import { ImageUploadConfig } from '../../common/config/image-upload.config';
 import { UsersService } from '../users/users.service';
+import { CacheInvalidationService } from '../../common/services/cache-invalidation.service';
+import { CACHE_TTL } from '../../config/cache.config';
+import { CacheKeyBuilder } from '../../common/utils/cache-key.builder';
 
 @Injectable()
 export class RecipesService {
@@ -15,6 +20,8 @@ export class RecipesService {
     private readonly recipeModel: Model<RecipeDocument>,
     private readonly s3Service: S3Service,
     private readonly usersService: UsersService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private cacheInvalidation: CacheInvalidationService,
   ) {}
 
   async create(createRecipeDto: CreateRecipeDto): Promise<Recipe> {
@@ -79,19 +86,66 @@ export class RecipesService {
 
     // eslint-disable-next-line no-console
     console.log('[RecipesService] Saving recipe to database...');
-    return createdRecipe.save();
+    const saved = await createdRecipe.save();
+
+    // Invalidate cache
+    await this.cacheInvalidation.invalidateRecipe(
+      saved._id.toString(),
+      saved.ownerId.toString(),
+    );
+
+    return saved;
   }
 
   async findAll(ownerId: string): Promise<Recipe[]> {
-    return this.recipeModel.find({ ownerId }).exec();
+    const cacheKey = CacheKeyBuilder.create()
+      .service('users')
+      .resource('recipes')
+      .id(ownerId)
+      .scope('list')
+      .version('v1')
+      .build();
+
+    // Try cache
+    const cached = await this.cacheManager.get<Recipe[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Fetch from DB
+    const recipes = await this.recipeModel.find({ ownerId }).lean().exec();
+
+    // Cache result
+    await this.cacheManager.set(cacheKey, recipes, CACHE_TTL.USER_RECIPES);
+
+    return recipes as Recipe[];
   }
 
   async findOne(id: string): Promise<Recipe> {
-    const recipe = await this.recipeModel.findById(id).exec();
+    const cacheKey = CacheKeyBuilder.create()
+      .service('recipes')
+      .resource('detail')
+      .id(id)
+      .scope('public')
+      .version('v1')
+      .build();
+
+    // Try cache
+    const cached = await this.cacheManager.get<Recipe>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Fetch from DB
+    const recipe = await this.recipeModel.findById(id).lean().exec();
     if (!recipe) {
       throw new NotFoundException('Recipe not found');
     }
-    return recipe;
+
+    // Cache result
+    await this.cacheManager.set(cacheKey, recipe, CACHE_TTL.RECIPE_DETAIL);
+
+    return recipe as Recipe;
   }
 
   async findByCategory(ownerId: string, category: string): Promise<Recipe[]> {
@@ -174,6 +228,13 @@ export class RecipesService {
     });
 
     await (recipe as any).save();
+
+    // Invalidate cache
+    await this.cacheInvalidation.invalidateRecipe(
+      id,
+      ownerId,
+    );
+
     return recipe;
   }
 
@@ -209,6 +270,12 @@ export class RecipesService {
     }
 
     await this.recipeModel.deleteOne({ _id: id }).exec();
+
+    // Invalidate cache
+    await this.cacheInvalidation.invalidateRecipe(
+      id,
+      ownerId,
+    );
   }
 
   async getStats(ownerId: string) {

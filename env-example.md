@@ -1,0 +1,17 @@
+PORT=###
+MONGODB_URL=###
+MONGODB_NAME=###
+
+# AWS credentials from AWS IAM console
+AWS_ACCESS_KEY_ID=###
+AWS_SECRET_ACCESS_KEY=###
+AWS_REGION=###
+AWS_S3_BUCKET_NAME=###t
+# ... other configs
+
+#REDIS
+REDIS_HOST=###
+REDIS_PORT=###
+REDIS_PASSWORD=##
+REDIS_DB=###
+REDIS_TLS=###
