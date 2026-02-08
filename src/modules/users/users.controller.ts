@@ -60,10 +60,10 @@ export class UsersController {
     };
   }
 
-  @Get('preferences')
+  @Get('preferences/:id')
   @UseGuards(JwtAuthGuard)
-  async getPreferences(@Request() req) {
-    const user = await this.usersService.findOne(req.user.userId);
+  async getPreferences(@Param('id') id: string) {
+    const user = await this.usersService.findOne(id);
     return {
       success: true,
       data: {

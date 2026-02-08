@@ -49,6 +49,14 @@ export class UsersService {
     return user;
   }
 
+  async findOneReferenced(id: string): Promise<User> {
+    const user = await this.userModel.findById(id).exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
   async findByName(name: string): Promise<User | undefined> {
     const user = await this.userModel
       .findOne({ name: new RegExp(`^${name}$`, 'i') })
