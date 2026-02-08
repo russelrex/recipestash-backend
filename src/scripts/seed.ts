@@ -11,14 +11,14 @@ async function bootstrap() {
   let app;
   try {
     console.log('🌱 Starting database seeding...');
-    
+  
     // Debug: Show what we're connecting to
     console.log('📍 MONGODB_URL:', process.env.MONGODB_URL);
     console.log('📍 MONGODB_NAME:', process.env.MONGODB_NAME);
     
     app = await NestFactory.createApplicationContext(AppModule);
     const connection = app.get(getConnectionToken()) as Connection;
-
+  
     // Debug: Show actual connection
     console.log('📍 Connected to host:', connection.host);
     console.log('📍 Connected to database:', connection.name);
@@ -370,7 +370,7 @@ async function bootstrap() {
     // eslint-disable-next-line no-console
     console.error('❌ Error seeding database:', error);
     if (app) {
-      await app.close();
+    await app.close();
     }
     process.exit(1);
   }
