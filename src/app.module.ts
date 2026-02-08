@@ -16,61 +16,74 @@ import { AppController } from './app.controller';
 @Module({
   controllers: [AppController],
   imports: [
+    // CRITICAL FIX: ConfigModule must load environment variables properly for Railway
     ConfigModule.forRoot({
       isGlobal: true,
-      // In production (Railway), read from environment variables directly
-      // In development, also try .env.local file
-      envFilePath: process.env.NODE_ENV === 'production' ? undefined : '.env.local',
-      // Always load from process.env (Railway sets these directly)
+      // Railway uses environment variables directly, not .env files
       ignoreEnvFile: process.env.NODE_ENV === 'production',
+      // Ensure all environment variables are loaded
+      cache: false,
+      expandVariables: true,
     }),
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => {
-        // Check both MONGODB_URL and MONGODB_URI (Railway might use either)
-        const mongoUri =
-          configService.get<string>('MONGODB_URL') ||
-          configService.get<string>('MONGODB_URI') ||
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => {
+        // Log all available environment variables (for debugging)
+        console.log('🔍 Environment Check:');
+        console.log('NODE_ENV:', process.env.NODE_ENV);
+        console.log('Available MongoDB variables:');
+        console.log('- MONGODB_URL:', process.env.MONGODB_URL ? '✓ SET' : '✗ NOT SET');
+        console.log('- MONGODB_URI:', process.env.MONGODB_URI ? '✓ SET' : '✗ NOT SET');
+        console.log('- MONGO_URL:', process.env.MONGO_URL ? '✓ SET' : '✗ NOT SET');
+        console.log('- MONGODB_NAME:', process.env.MONGODB_NAME ? '✓ SET' : '✗ NOT SET');
+
+        // Try multiple variable names for compatibility
+        const mongoUrl =
           process.env.MONGODB_URL ||
           process.env.MONGODB_URI ||
-          null;
+          process.env.MONGO_URL ||
+          configService.get<string>('MONGODB_URL') ||
+          configService.get<string>('MONGODB_URI') ||
+          configService.get<string>('MONGO_URL');
 
-        if (!mongoUri) {
-          // Log available env vars for debugging (without sensitive data)
-          const envKeys = Object.keys(process.env).filter(key => 
-            key.toUpperCase().includes('MONGO') || key.toUpperCase().includes('DATABASE')
-          );
-          console.error('MongoDB connection error - Available MongoDB-related env vars:', envKeys);
+        const dbName =
+          process.env.MONGODB_NAME ||
+          configService.get<string>('MONGODB_NAME') ||
+          'recipestash';
+
+        if (!mongoUrl) {
+          const availableVars = Object.keys(process.env)
+            .filter(key => key.includes('MONGO') || key.includes('DATABASE'))
+            .join(', ');
+          
+          console.error('❌ MongoDB connection failed');
+          console.error('Available database-related vars:', availableVars || 'NONE');
+          
           throw new Error(
-            'MONGODB_URI or MONGODB_URL environment variable is required. ' +
-            'Please set one of these variables in your Railway environment settings.'
+            'MONGODB_URL environment variable is required. ' +
+            'Please set it in Railway dashboard: Settings → Variables → Add Variable'
           );
         }
 
-        const dbName = 
-          configService.get<string>('MONGODB_NAME') ||
-          process.env.MONGODB_NAME ||
-          '';
-
-        console.log('MongoDB connection configured:', {
-          uri: mongoUri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@'), // Hide credentials in logs
-          dbName: dbName || '(default)',
-        });
+        console.log('✓ MongoDB URL found');
+        console.log('✓ Database name:', dbName);
 
         return {
-          uri: mongoUri,
+          uri: mongoUrl,
           dbName: dbName,
-          serverSelectionTimeoutMS: 5000,
+          serverSelectionTimeoutMS: 10000,
           socketTimeoutMS: 45000,
           connectTimeoutMS: 10000,
           maxPoolSize: 10,
           minPoolSize: 2,
           heartbeatFrequencyMS: 10000,
+          retryWrites: true,
+          retryReads: true,
         };
       },
-      inject: [ConfigService],
     }),
     CacheModule,
     S3Module,
