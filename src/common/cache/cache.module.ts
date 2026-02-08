@@ -18,6 +18,12 @@ import { SafeCacheService } from '../services/safe-cache.service';
         const redisPort = configService.get<number>('REDIS_PORT', 6379);
         const redisPassword = configService.get<string>('REDIS_PASSWORD');
         const redisDb = configService.get<number>('REDIS_DB', 0);
+        const redisUrl = configService.get<string>('REDIS_URL');
+        
+        if (!redisUrl) {
+          console.warn('⚠️ Redis not configured, using in-memory cache');
+          return { ttl: 300 };
+        }
 
         try {
           return {
