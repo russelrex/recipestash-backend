@@ -1,12 +1,12 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
-import Redis from 'ioredis';
+import type Redis from 'ioredis';
 
 @Injectable()
 export class CacheInvalidationService {
   private readonly logger = new Logger(CacheInvalidationService.name);
-  private redis: Redis;
+  private redis: Redis | null = null;
 
   constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {
     // Access underlying Redis client for pattern operations
