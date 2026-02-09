@@ -12,9 +12,9 @@ async function bootstrap() {
 
   // Enable CORS for mobile app
   app.enableCors({
-    origin: '*', // Configure this properly for production
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
+    origin: '*', // Allow all
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
 
   // Enable validation pipes
