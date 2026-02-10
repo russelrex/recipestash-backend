@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { json, urlencoded } from 'express';
 
 async function bootstrap() {
   // Log startup info
@@ -9,6 +10,10 @@ async function bootstrap() {
   console.log('📍 PORT:', process.env.PORT || 3000);
 
   const app = await NestFactory.create(AppModule);
+
+  // Increase body size limit for file uploads (10MB)
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   // Enable CORS for mobile app
   app.enableCors({
@@ -33,6 +38,7 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0');
 
   console.log(`✅ Application is running on http://0.0.0.0:${port}/api`);
+  console.log(`📸 Upload endpoint: http://0.0.0.0:${port}/api/recipes/upload-image`);
 }
 
 bootstrap().catch((error) => {

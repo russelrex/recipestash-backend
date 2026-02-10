@@ -9,16 +9,27 @@ import {
   Query,
   UseGuards,
   Request,
+  UploadedFile,
+  UseInterceptors,
+  BadRequestException,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { RecipesService } from './recipes.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
+import { S3Service } from '../../common/services/s3.service';
+import { ImageUploadConfig } from '../../common/config/image-upload.config';
 
 @Controller('recipes')
 export class RecipesController {
-  constructor(private readonly recipesService: RecipesService) {}
+  constructor(
+    private readonly recipesService: RecipesService,
+    private readonly s3Service: S3Service,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -162,6 +173,63 @@ export class RecipesController {
       return { success: true, message: `Imported ${created.length} recipe(s)`, data: created };
     } catch (error: any) {
       return { success: false, message: error.message || 'Import failed' };
+    }
+  }
+
+  @Post('upload-image')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadImage(@UploadedFile() file: Express.Multer.File) {
+    console.log('\n📸 [RecipesController] ============ IMAGE UPLOAD REQUEST ============');
+    console.log('📸 [RecipesController] Received file upload request');
+    console.log('📸 [RecipesController] File details:', {
+      fieldname: file?.fieldname,
+      originalname: file?.originalname,
+      mimetype: file?.mimetype,
+      size: file?.size,
+    });
+
+    if (!file) {
+      console.error('❌ [RecipesController] No file provided in request');
+      throw new BadRequestException('No file provided');
+    }
+
+    try {
+      // Validate file type
+      const allowedMimeTypes = ImageUploadConfig.allowedFormats;
+      if (!allowedMimeTypes.includes(file.mimetype)) {
+        console.error('❌ [RecipesController] Invalid file type:', file.mimetype);
+        throw new BadRequestException('Invalid file type. Only JPEG, PNG, and WebP images are allowed.');
+      }
+
+      // Validate file size (5MB max)
+      const maxSize = ImageUploadConfig.maxFileSize;
+      if (file.size > maxSize) {
+        console.error('❌ [RecipesController] File too large:', file.size);
+        throw new BadRequestException(`File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`);
+      }
+
+      // Convert file buffer to base64 for S3Service
+      const base64Data = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      
+      console.log('📤 [RecipesController] Uploading to S3...');
+      const imageUrl = await this.s3Service.uploadImage(
+        base64Data,
+        ImageUploadConfig.folders.featuredImages,
+        'featured'
+      );
+
+      console.log('✅ [RecipesController] Upload successful');
+      console.log('✅ [RecipesController] Image URL:', imageUrl);
+
+      return {
+        url: imageUrl,
+        filename: file.originalname,
+        size: file.size,
+      };
+    } catch (error: any) {
+      console.error('❌ [RecipesController] Upload failed:', error);
+      throw error;
     }
   }
 }
