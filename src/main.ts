@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import { json, urlencoded } from 'express';
 
 async function bootstrap() {
   // Log startup info
@@ -11,9 +10,9 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
-  // Increase body size limit for file uploads (10MB)
-  app.use(json({ limit: '10mb' }));
-  app.use(urlencoded({ extended: true, limit: '10mb' }));
+  // Note: NestJS already handles body size limits through platform-express
+  // The default is 100kb, but for file uploads via multipart/form-data,
+  // FileInterceptor handles the file buffer directly (not JSON/urlencoded)
 
   // Enable CORS for mobile app
   app.enableCors({
