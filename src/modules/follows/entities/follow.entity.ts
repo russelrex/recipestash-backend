@@ -25,4 +25,3 @@ export class FollowStats {
   followersCount: number;
   followingCount: number;
 }
-

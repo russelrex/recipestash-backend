@@ -47,7 +47,7 @@ export class FollowsController {
         data: { isFollowing: false },
       };
     }
-    
+
     const isFollowing = await this.followsService.isFollowing(
       req.user.userId,
       userId,
@@ -153,4 +153,3 @@ export class FollowsController {
     return { success: true, data: list };
   }
 }
-

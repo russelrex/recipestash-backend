@@ -32,6 +32,19 @@ export class User {
 
   @Prop({ default: true })
   privacyProfilePublic?: boolean;
+
+  // Subscription fields
+  @Prop({ default: 'free', enum: ['free', 'premium'] })
+  plan?: string;
+
+  @Prop()
+  subscriptionEndsAt?: Date;
+
+  @Prop({
+    default: 'inactive',
+    enum: ['active', 'expiring_soon', 'expired', 'inactive'],
+  })
+  subscriptionStatus?: string;
 }
 
 export type UserDocument = User & Document;

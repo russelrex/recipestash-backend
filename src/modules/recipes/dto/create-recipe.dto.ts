@@ -76,4 +76,3 @@ export class CreateRecipeDto {
   @IsOptional()
   rating?: number;
 }
-

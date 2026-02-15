@@ -51,4 +51,3 @@ export class Comment {
 
 export type CommentDocument = Comment & Document;
 export const CommentSchema = SchemaFactory.createForClass(Comment);
-

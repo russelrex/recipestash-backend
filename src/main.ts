@@ -8,7 +8,9 @@ async function bootstrap() {
   console.log('📍 NODE_ENV:', process.env.NODE_ENV || 'development');
   console.log('📍 PORT:', process.env.PORT || 3000);
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true, // Enable raw body for webhook signature verification
+  });
 
   // Note: NestJS already handles body size limits through platform-express
   // The default is 100kb, but for file uploads via multipart/form-data,
@@ -37,11 +39,18 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0');
 
   console.log(`✅ Application is running on http://0.0.0.0:${port}/api`);
-  console.log(`📸 Upload endpoint: http://0.0.0.0:${port}/api/recipes/upload-image`);
+  console.log(
+    `📸 Upload endpoint: http://0.0.0.0:${port}/api/recipes/upload-image`,
+  );
+  console.log(
+    `💳 Billing endpoint: http://0.0.0.0:${port}/api/billing/checkout`,
+  );
+  console.log(
+    `🔔 Webhook endpoint: http://0.0.0.0:${port}/api/billing/webhooks/paymongo`,
+  );
 }
 
 bootstrap().catch((error) => {
   console.error('❌ Application failed to start:', error);
   process.exit(1);
 });
-

@@ -14,8 +14,8 @@ import { SafeCacheService } from '../services/safe-cache.service';
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => {
         // Check if Redis is configured (Railway uses REDIS_URL or REDIS_PRIVATE_URL)
-        const redisUrl = 
-          process.env.REDIS_URL || 
+        const redisUrl =
+          process.env.REDIS_URL ||
           process.env.REDIS_PRIVATE_URL ||
           configService.get<string>('REDIS_URL') ||
           configService.get<string>('REDIS_PRIVATE_URL');
@@ -27,7 +27,7 @@ import { SafeCacheService } from '../services/safe-cache.service';
           console.log('   1. Add Redis database in Railway');
           console.log('   2. Railway will auto-create REDIS_URL variable');
           console.log('   3. Restart this service');
-          
+
           return {
             ttl: 300, // 5 minutes
             max: 100, // Max 100 items in memory
@@ -37,10 +37,10 @@ import { SafeCacheService } from '../services/safe-cache.service';
         // Try to connect to Redis
         try {
           console.log('🔌 Attempting to connect to Redis...');
-          
+
           // Dynamic import to avoid crashes if redis not installed
           const { redisStore } = await import('cache-manager-redis-yet');
-          
+
           const store = await redisStore({
             url: redisUrl,
             ttl: 300,
@@ -50,7 +50,9 @@ import { SafeCacheService } from '../services/safe-cache.service';
               reconnectStrategy: (retries: number) => {
                 // Stop trying after 3 attempts
                 if (retries > 3) {
-                  console.warn('⚠️  Redis connection failed after 3 retries, using in-memory cache');
+                  console.warn(
+                    '⚠️  Redis connection failed after 3 retries, using in-memory cache',
+                  );
                   return false; // Stop retrying
                 }
                 // Retry after 1 second
@@ -60,7 +62,7 @@ import { SafeCacheService } from '../services/safe-cache.service';
           });
 
           console.log('✅ Redis connected successfully');
-          
+
           return {
             store,
             ttl: 300,
@@ -68,7 +70,7 @@ import { SafeCacheService } from '../services/safe-cache.service';
         } catch (error: any) {
           console.warn('⚠️  Redis connection failed:', error.message);
           console.warn('⚠️  Falling back to in-memory cache');
-          
+
           // Fallback to in-memory cache
           return {
             ttl: 300,
@@ -79,6 +81,11 @@ import { SafeCacheService } from '../services/safe-cache.service';
     }),
   ],
   providers: [CacheInvalidationService, CacheSyncService, SafeCacheService],
-  exports: [NestCacheModule, CacheInvalidationService, CacheSyncService, SafeCacheService],
+  exports: [
+    NestCacheModule,
+    CacheInvalidationService,
+    CacheSyncService,
+    SafeCacheService,
+  ],
 })
 export class CacheModule {}

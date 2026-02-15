@@ -14,4 +14,3 @@ export class CreatePostDto {
   @IsOptional()
   imageUrl?: string;
 }
-
