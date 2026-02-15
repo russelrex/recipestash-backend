@@ -41,10 +41,9 @@ export class HttpCacheInterceptor implements NestInterceptor {
       return next.handle();
     }
 
-    const ttl = this.reflector.get<number>(
-      CACHE_TTL_METADATA,
-      context.getHandler(),
-    ) || 300; // Default 5 minutes
+    const ttl =
+      this.reflector.get<number>(CACHE_TTL_METADATA, context.getHandler()) ||
+      300; // Default 5 minutes
 
     // Check cache
     const cachedValue = await this.cacheManager.get(cacheKey);

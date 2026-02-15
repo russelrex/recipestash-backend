@@ -114,8 +114,7 @@ export class PostsController {
   @Patch(':id/like')
   @UseGuards(JwtAuthGuard)
   async toggleLike(@Param('id') id: string, @Request() req) {
-    
-      console.log("req.user", req.user);
+    console.log('req.user', req.user);
     const post = await this.postsService.toggleLike(id, req.user.userId);
     return {
       success: true,
@@ -162,4 +161,3 @@ export class PostsController {
     };
   }
 }
-

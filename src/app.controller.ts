@@ -14,8 +14,8 @@ export class AppController {
 
   @Get('health')
   getHealth() {
-    return { 
-      status: 'ok', 
+    return {
+      status: 'ok',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
     };
@@ -31,9 +31,14 @@ export class AppController {
       hasJwtSecret: !!process.env.JWT_SECRET,
       hasMongoName: !!process.env.MONGODB_NAME,
       port: process.env.PORT,
-      allEnvKeys: Object.keys(process.env).filter(
-        key => !key.startsWith('npm_') && !key.startsWith('PATH') && !key.startsWith('HOME')
-      ).sort(),
+      allEnvKeys: Object.keys(process.env)
+        .filter(
+          (key) =>
+            !key.startsWith('npm_') &&
+            !key.startsWith('PATH') &&
+            !key.startsWith('HOME'),
+        )
+        .sort(),
     };
   }
 }

@@ -23,18 +23,18 @@ export class AuthService {
         registerDto.password,
       );
 
-    const userId = (user as any)._id?.toString?.() ?? (user as any).id;
+      const userId = (user as any)._id?.toString?.() ?? (user as any).id;
       const payload = { sub: userId, email: user.email, name: user.name };
-    const token = this.generateToken(userId, user.name);
+      const token = this.generateToken(userId, user.name);
 
-    return {
-      success: true,
-      message: 'Registration successful',
-      data: {
-        user: this.usersService.sanitizeUser(user),
-        token,
-      },
-    };
+      return {
+        success: true,
+        message: 'Registration successful',
+        data: {
+          user: this.usersService.sanitizeUser(user),
+          token,
+        },
+      };
     } catch (error) {
       if (error instanceof ConflictException) {
         throw error;
@@ -50,8 +50,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const isPasswordValid = await this.usersService.validatePassword(user, loginDto.password);
-    
+    const isPasswordValid = await this.usersService.validatePassword(
+      user,
+      loginDto.password,
+    );
+
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
@@ -118,4 +121,3 @@ export class AuthService {
     return this.jwtService.sign(payload);
   }
 }
-

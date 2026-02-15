@@ -11,14 +11,14 @@ async function bootstrap() {
   let app;
   try {
     console.log('🌱 Starting database seeding...');
-  
+
     // Debug: Show what we're connecting to
     console.log('📍 MONGODB_URL:', process.env.MONGODB_URL);
     console.log('📍 MONGODB_NAME:', process.env.MONGODB_NAME);
-    
+
     app = await NestFactory.createApplicationContext(AppModule);
     const connection = app.get(getConnectionToken()) as Connection;
-  
+
     // Debug: Show actual connection
     console.log('📍 Connected to host:', connection.host);
     console.log('📍 Connected to database:', connection.name);
@@ -29,12 +29,12 @@ async function bootstrap() {
     const postsService = app.get(PostsService);
 
     // Clear existing data (optional - comment out if you want to keep existing data)
-    // eslint-disable-next-line no-console
+
     console.log('⚠️  Clearing existing data...');
     // Note: You might want to add clear methods to services or use Mongoose directly
 
     // Seed Users
-    // eslint-disable-next-line no-console
+
     console.log('👤 Seeding users...');
 
     const user1Data = {
@@ -61,41 +61,53 @@ async function bootstrap() {
     const existingUser3 = await usersService.findByEmail(user3Data.email);
 
     if (!existingUser1) {
-      user1 = await usersService.create(user1Data.name, user1Data.email, user1Data.password);
-      // eslint-disable-next-line no-console
-      console.log(`✅ Created user: ${user1.name} (ID: ${(user1 as any)._id})`);
+      user1 = await usersService.create(
+        user1Data.name,
+        user1Data.email,
+        user1Data.password,
+      );
+
+      console.log(`✅ Created user: ${user1.name} (ID: ${user1._id})`);
     } else {
       user1 = existingUser1;
-      // eslint-disable-next-line no-console
+
       console.log(`ℹ️  User already exists: ${user1.name}`);
     }
 
     if (!existingUser2) {
-      user2 = await usersService.create(user2Data.name, user2Data.email, user2Data.password);
-      // eslint-disable-next-line no-console
-      console.log(`✅ Created user: ${user2.name} (ID: ${(user2 as any)._id})`);
+      user2 = await usersService.create(
+        user2Data.name,
+        user2Data.email,
+        user2Data.password,
+      );
+
+      console.log(`✅ Created user: ${user2.name} (ID: ${user2._id})`);
     } else {
       user2 = existingUser2;
-      // eslint-disable-next-line no-console
+
       console.log(`ℹ️  User already exists: ${user2.name}`);
     }
 
     if (!existingUser3) {
-      user3 = await usersService.create(user3Data.name, user3Data.email, user3Data.password);
-      // eslint-disable-next-line no-console
-      console.log(`✅ Created user: ${user3.name} (ID: ${(user3 as any)._id})`);
+      user3 = await usersService.create(
+        user3Data.name,
+        user3Data.email,
+        user3Data.password,
+      );
+
+      console.log(`✅ Created user: ${user3.name} (ID: ${user3._id})`);
     } else {
       user3 = existingUser3;
-      // eslint-disable-next-line no-console
+
       console.log(`ℹ️  User already exists: ${user3.name}`);
     }
 
-    const userId1 = (user1 as any)._id?.toString() ?? (user1 as any).id;
-    const userId2 = (user2 as any)._id?.toString() ?? (user2 as any).id;
-    const userId3 = (user3 as any)._id?.toString() ?? (user3 as any).id;
+    const userId1 = user1._id?.toString() ?? user1.id;
+    const userId2 = user2._id?.toString() ?? user2.id;
+    const userId3 = user3._id?.toString() ?? user3.id;
 
     // Seed Recipes
-    // eslint-disable-next-line no-console
+
     console.log('🍳 Seeding recipes...');
 
     const recipes = [
@@ -104,7 +116,8 @@ async function bootstrap() {
         ownerId: userId1,
         ownerName: user1.name,
         title: 'Classic Chocolate Chip Cookies',
-        description: 'Soft and chewy chocolate chip cookies that are perfect for any occasion.',
+        description:
+          'Soft and chewy chocolate chip cookies that are perfect for any occasion.',
         ingredients: [
           '2 1/4 cups all-purpose flour',
           '1 tsp baking soda',
@@ -136,7 +149,8 @@ async function bootstrap() {
       {
         userId: userId1,
         title: 'Spaghetti Carbonara',
-        description: 'Creamy Italian pasta dish with bacon and parmesan cheese.',
+        description:
+          'Creamy Italian pasta dish with bacon and parmesan cheese.',
         ingredients: [
           '1 lb spaghetti',
           '8 oz bacon, diced',
@@ -295,18 +309,19 @@ async function bootstrap() {
           ownerId: userId1,
           ownerName: user1.name,
         });
-        // eslint-disable-next-line no-console
+
         console.log(`✅ Created recipe: ${recipe.title}`);
         createdCount++;
       } catch (error) {
-        // eslint-disable-next-line no-console
-        console.log(`⚠️  Skipped recipe (may already exist): ${recipeData.title}`);
+        console.log(
+          `⚠️  Skipped recipe (may already exist): ${recipeData.title}`,
+        );
         skippedCount++;
       }
     }
 
     // Seed Posts / Newsfeed
-    // eslint-disable-next-line no-console
+
     console.log('📰 Seeding posts and comments...');
 
     const aliceRecipes = await recipesService.findAll(userId1);
@@ -318,18 +333,23 @@ async function bootstrap() {
     const postsToCreate = [
       {
         userId: userId1,
-        content: 'Just baked these amazing chocolate chip cookies from my saved recipe! 🍪',
-        recipeId: aliceFirstRecipe ? (aliceFirstRecipe as any)._id?.toString() : undefined,
+        content:
+          'Just baked these amazing chocolate chip cookies from my saved recipe! 🍪',
+        recipeId: aliceFirstRecipe
+          ? aliceFirstRecipe._id?.toString()
+          : undefined,
       },
       {
         userId: userId1,
         content: 'Carbonara night! This recipe is a keeper. 😋',
-        recipeId: aliceFirstRecipe ? (aliceFirstRecipe as any)._id?.toString() : undefined,
+        recipeId: aliceFirstRecipe
+          ? aliceFirstRecipe._id?.toString()
+          : undefined,
       },
       {
         userId: userId2,
         content: 'Grilled salmon turned out perfect on the first try! 🐟🔥',
-        recipeId: bobFirstRecipe ? (bobFirstRecipe as any)._id?.toString() : undefined,
+        recipeId: bobFirstRecipe ? bobFirstRecipe._id?.toString() : undefined,
       },
     ];
 
@@ -340,37 +360,46 @@ async function bootstrap() {
         recipeId: postData.recipeId,
       });
       createdPosts.push(post);
-      // eslint-disable-next-line no-console
+
       console.log(`✅ Created post for user ${post.userName}: ${post.content}`);
     }
 
     // Seed some comments on the first post
     if (createdPosts[0]) {
-      await postsService.createComment((createdPosts[0] as any)._id.toString(), userId2, {
-        content: 'Those cookies look delicious! I need to try this recipe. 😍',
-      });
-      await postsService.createComment((createdPosts[0] as any)._id.toString(), userId3, {
-        content: 'Saving this to my favorites. Thanks for sharing!',
-      });
-      // eslint-disable-next-line no-console
+      await postsService.createComment(
+        createdPosts[0]._id.toString(),
+        userId2,
+        {
+          content:
+            'Those cookies look delicious! I need to try this recipe. 😍',
+        },
+      );
+      await postsService.createComment(
+        createdPosts[0]._id.toString(),
+        userId3,
+        {
+          content: 'Saving this to my favorites. Thanks for sharing!',
+        },
+      );
+
       console.log('💬 Added comments to the first post');
     }
 
-    // eslint-disable-next-line no-console
     console.log('\n📊 Seed Summary:');
-    // eslint-disable-next-line no-console
+
     console.log(`   Recipes created: ${createdCount}`);
-    // eslint-disable-next-line no-console
+
     console.log(`   Recipes skipped: ${skippedCount}`);
-    // eslint-disable-next-line no-console
-    console.log('✅ Database seeding completed (users, recipes, posts, comments)!');
+
+    console.log(
+      '✅ Database seeding completed (users, recipes, posts, comments)!',
+    );
 
     await app.close();
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error('❌ Error seeding database:', error);
     if (app) {
-    await app.close();
+      await app.close();
     }
     process.exit(1);
   }

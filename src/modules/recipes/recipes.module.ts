@@ -17,4 +17,3 @@ import { UsersModule } from '../users/users.module';
   exports: [RecipesService],
 })
 export class RecipesModule {}
-

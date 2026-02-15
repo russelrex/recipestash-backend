@@ -14,12 +14,18 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const secret = configService.get<string>('JWT_SECRET', 'your-secret-key');
-        // eslint-disable-next-line no-console
-        console.log('[AuthModule] JWT secret preview', secret ? secret.slice(0, 4) + '...' : null);
+        const secret = configService.get<string>(
+          'JWT_SECRET',
+          'your-secret-key',
+        );
+
+        console.log(
+          '[AuthModule] JWT secret preview',
+          secret ? secret.slice(0, 4) + '...' : null,
+        );
         return {
           secret,
-      signOptions: { expiresIn: '7d' },
+          signOptions: { expiresIn: '7d' },
         };
       },
     }),
@@ -29,5 +35,3 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   exports: [AuthService],
 })
 export class AuthModule {}
-
-

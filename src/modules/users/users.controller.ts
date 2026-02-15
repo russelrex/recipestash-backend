@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Put, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Put,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
@@ -78,7 +87,10 @@ export class UsersController {
   @Put('preferences')
   @UseGuards(JwtAuthGuard)
   async updatePreferences(@Request() req, @Body() body: any) {
-    const user = await this.usersService.updatePreferences(req.user.userId, body);
+    const user = await this.usersService.updatePreferences(
+      req.user.userId,
+      body,
+    );
     return {
       success: true,
       message: 'Preferences updated',
@@ -91,4 +103,3 @@ export class UsersController {
     };
   }
 }
-

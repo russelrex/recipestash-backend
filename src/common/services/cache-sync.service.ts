@@ -1,4 +1,9 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject } from '@nestjs/common';
 import type { Cache } from 'cache-manager';
@@ -19,8 +24,8 @@ export class CacheSyncService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     // Check if Redis is available
-    const redisUrl = 
-      process.env.REDIS_URL || 
+    const redisUrl =
+      process.env.REDIS_URL ||
       process.env.REDIS_PRIVATE_URL ||
       this.configService.get<string>('REDIS_URL') ||
       this.configService.get<string>('REDIS_PRIVATE_URL');
@@ -35,17 +40,19 @@ export class CacheSyncService implements OnModuleInit, OnModuleDestroy {
       // Use require for ioredis as it's a CommonJS module
       const RedisModule = require('ioredis');
       const RedisClass = RedisModule.default || RedisModule;
-      
+
       // Parse Redis URL if provided, otherwise use host/port
       let redisConfig: any;
-      
+
       if (redisUrl.startsWith('redis://') || redisUrl.startsWith('rediss://')) {
         // Use URL directly
         redisConfig = {
           url: redisUrl,
           retryStrategy: (times: number) => {
             if (times > 3) {
-              this.logger.warn('Redis connection failed after 3 retries, disabling sync');
+              this.logger.warn(
+                'Redis connection failed after 3 retries, disabling sync',
+              );
               return false; // Stop retrying
             }
             return Math.min(times * 50, 2000);
@@ -53,17 +60,22 @@ export class CacheSyncService implements OnModuleInit, OnModuleDestroy {
         };
       } else {
         // Use host/port configuration
-        const redisHost = this.configService.get<string>('REDIS_HOST', 'localhost');
+        const redisHost = this.configService.get<string>(
+          'REDIS_HOST',
+          'localhost',
+        );
         const redisPort = this.configService.get<number>('REDIS_PORT', 6379);
         const redisPassword = this.configService.get<string>('REDIS_PASSWORD');
-        
+
         redisConfig = {
           host: redisHost,
           port: redisPort,
           password: redisPassword,
           retryStrategy: (times: number) => {
             if (times > 3) {
-              this.logger.warn('Redis connection failed after 3 retries, disabling sync');
+              this.logger.warn(
+                'Redis connection failed after 3 retries, disabling sync',
+              );
               return false;
             }
             return Math.min(times * 50, 2000);
@@ -91,7 +103,10 @@ export class CacheSyncService implements OnModuleInit, OnModuleDestroy {
                 await this.deleteByPattern(pattern);
               }
             } catch (error) {
-              this.logger.error('Error processing cache invalidation message:', error);
+              this.logger.error(
+                'Error processing cache invalidation message:',
+                error,
+              );
             }
           }
         });
@@ -99,8 +114,13 @@ export class CacheSyncService implements OnModuleInit, OnModuleDestroy {
         this.logger.log('Cache sync service initialized');
       }
     } catch (error: any) {
-      this.logger.warn('Failed to initialize cache sync service:', error.message);
-      this.logger.warn('Continuing without Redis pub/sub - single instance will work fine');
+      this.logger.warn(
+        'Failed to initialize cache sync service:',
+        error.message,
+      );
+      this.logger.warn(
+        'Continuing without Redis pub/sub - single instance will work fine',
+      );
       // Don't throw - let app continue without Redis sync
     }
   }
@@ -123,10 +143,7 @@ export class CacheSyncService implements OnModuleInit, OnModuleDestroy {
     }
 
     try {
-      await this.publisher.publish(
-        this.CHANNEL,
-        JSON.stringify({ key })
-      );
+      await this.publisher.publish(this.CHANNEL, JSON.stringify({ key }));
     } catch (error) {
       this.logger.error(`Error publishing invalidation for ${key}:`, error);
     }
@@ -138,12 +155,12 @@ export class CacheSyncService implements OnModuleInit, OnModuleDestroy {
     }
 
     try {
-      await this.publisher.publish(
-        this.CHANNEL,
-        JSON.stringify({ pattern })
-      );
+      await this.publisher.publish(this.CHANNEL, JSON.stringify({ pattern }));
     } catch (error) {
-      this.logger.error(`Error publishing pattern invalidation for ${pattern}:`, error);
+      this.logger.error(
+        `Error publishing pattern invalidation for ${pattern}:`,
+        error,
+      );
     }
   }
 

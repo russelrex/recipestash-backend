@@ -15,4 +15,3 @@ import { UsersModule } from '../users/users.module';
   exports: [FollowsService],
 })
 export class FollowsModule {}
-

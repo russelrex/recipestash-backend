@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  Inject,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -27,20 +32,27 @@ export class RecipesService {
   async create(createRecipeDto: CreateRecipeDto): Promise<Recipe> {
     // Upload featured image if provided (base64)
     let featuredImageUrl: string | undefined;
-    if (createRecipeDto.featuredImage && createRecipeDto.featuredImage.startsWith('data:image')) {
+    if (
+      createRecipeDto.featuredImage &&
+      createRecipeDto.featuredImage.startsWith('data:image')
+    ) {
       try {
-        // eslint-disable-next-line no-console
         console.log('[RecipesService] Starting featured image upload to S3...');
         featuredImageUrl = await this.s3Service.uploadImage(
           createRecipeDto.featuredImage,
           ImageUploadConfig.folders.featuredImages,
-          'featured'
+          'featured',
         );
-        // eslint-disable-next-line no-console
-        console.log('[RecipesService] Featured image uploaded successfully:', featuredImageUrl);
+
+        console.log(
+          '[RecipesService] Featured image uploaded successfully:',
+          featuredImageUrl,
+        );
       } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error('[RecipesService] Failed to upload featured image:', error);
+        console.error(
+          '[RecipesService] Failed to upload featured image:',
+          error,
+        );
         // Re-throw the error to prevent recipe creation with failed upload
         throw error;
       }
@@ -51,23 +63,33 @@ export class RecipesService {
     // Upload additional images if provided (base64)
     let imageUrls: string[] = [];
     if (createRecipeDto.images && createRecipeDto.images.length > 0) {
-      const base64Images = createRecipeDto.images.filter(img => img.startsWith('data:image'));
-      const regularUrls = createRecipeDto.images.filter(img => !img.startsWith('data:image'));
-      
+      const base64Images = createRecipeDto.images.filter((img) =>
+        img.startsWith('data:image'),
+      );
+      const regularUrls = createRecipeDto.images.filter(
+        (img) => !img.startsWith('data:image'),
+      );
+
       if (base64Images.length > 0) {
         try {
-          // eslint-disable-next-line no-console
-          console.log(`[RecipesService] Starting upload of ${base64Images.length} additional images to S3...`);
+          console.log(
+            `[RecipesService] Starting upload of ${base64Images.length} additional images to S3...`,
+          );
           const uploadedUrls = await this.s3Service.uploadMultipleImages(
             base64Images,
-            ImageUploadConfig.folders.additionalImages
+            ImageUploadConfig.folders.additionalImages,
           );
           imageUrls = [...regularUrls, ...uploadedUrls];
-          // eslint-disable-next-line no-console
-          console.log('[RecipesService] Additional images uploaded successfully:', uploadedUrls);
+
+          console.log(
+            '[RecipesService] Additional images uploaded successfully:',
+            uploadedUrls,
+          );
         } catch (error) {
-          // eslint-disable-next-line no-console
-          console.error('[RecipesService] Failed to upload additional images:', error);
+          console.error(
+            '[RecipesService] Failed to upload additional images:',
+            error,
+          );
           // Re-throw the error to prevent recipe creation with failed upload
           throw error;
         }
@@ -84,7 +106,6 @@ export class RecipesService {
       featured: createRecipeDto.featured ?? false,
     });
 
-    // eslint-disable-next-line no-console
     console.log('[RecipesService] Saving recipe to database...');
     const saved = await createdRecipe.save();
 
@@ -175,7 +196,11 @@ export class RecipesService {
       .exec();
   }
 
-  async update(id: string, ownerId: string, updateRecipeDto: UpdateRecipeDto): Promise<Recipe> {
+  async update(
+    id: string,
+    ownerId: string,
+    updateRecipeDto: UpdateRecipeDto,
+  ): Promise<Recipe> {
     const recipe = await this.findOne(id);
 
     if (recipe.ownerId !== ownerId) {
@@ -183,7 +208,10 @@ export class RecipesService {
     }
 
     // Handle featured image update
-    if (updateRecipeDto.featuredImage && updateRecipeDto.featuredImage.startsWith('data:image')) {
+    if (
+      updateRecipeDto.featuredImage &&
+      updateRecipeDto.featuredImage.startsWith('data:image')
+    ) {
       // Delete old featured image if exists
       if (recipe.featuredImage) {
         await this.s3Service.deleteFile(recipe.featuredImage);
@@ -192,7 +220,7 @@ export class RecipesService {
       (recipe as any).featuredImage = await this.s3Service.uploadImage(
         updateRecipeDto.featuredImage,
         ImageUploadConfig.folders.featuredImages,
-        'featured'
+        'featured',
       );
     } else if (updateRecipeDto.featuredImage !== undefined) {
       (recipe as any).featuredImage = updateRecipeDto.featuredImage;
@@ -200,12 +228,18 @@ export class RecipesService {
 
     // Handle additional images update
     if (updateRecipeDto.images) {
-      const base64Images = updateRecipeDto.images.filter(img => img.startsWith('data:image'));
-      const regularUrls = updateRecipeDto.images.filter(img => !img.startsWith('data:image'));
+      const base64Images = updateRecipeDto.images.filter((img) =>
+        img.startsWith('data:image'),
+      );
+      const regularUrls = updateRecipeDto.images.filter(
+        (img) => !img.startsWith('data:image'),
+      );
 
       // Delete old images that are not in the new list
       if (recipe.images && recipe.images.length > 0) {
-        const imagesToDelete = recipe.images.filter(img => !regularUrls.includes(img));
+        const imagesToDelete = recipe.images.filter(
+          (img) => !regularUrls.includes(img),
+        );
         if (imagesToDelete.length > 0) {
           await this.s3Service.deleteMultipleFiles(imagesToDelete);
         }
@@ -215,7 +249,7 @@ export class RecipesService {
       if (base64Images.length > 0) {
         const uploadedUrls = await this.s3Service.uploadMultipleImages(
           base64Images,
-          ImageUploadConfig.folders.additionalImages
+          ImageUploadConfig.folders.additionalImages,
         );
         (recipe as any).images = [...regularUrls, ...uploadedUrls];
       } else {
@@ -230,17 +264,14 @@ export class RecipesService {
     await (recipe as any).save();
 
     // Invalidate cache
-    await this.cacheInvalidation.invalidateRecipe(
-      id,
-      ownerId,
-    );
+    await this.cacheInvalidation.invalidateRecipe(id, ownerId);
 
     return recipe;
   }
 
   async toggleFavorite(id: string, ownerId: string): Promise<Recipe> {
     const recipe = await this.findOne(id);
-    
+
     if (recipe.ownerId !== ownerId) {
       throw new ForbiddenException('You can only favorite your own recipes');
     }
@@ -272,10 +303,7 @@ export class RecipesService {
     await this.recipeModel.deleteOne({ _id: id }).exec();
 
     // Invalidate cache
-    await this.cacheInvalidation.invalidateRecipe(
-      id,
-      ownerId,
-    );
+    await this.cacheInvalidation.invalidateRecipe(id, ownerId);
   }
 
   async getStats(ownerId: string) {
@@ -290,23 +318,29 @@ export class RecipesService {
   }
 
   private getCategoryCounts(recipes: Recipe[]): Record<string, number> {
-    return recipes.reduce((acc, recipe) => {
-      acc[recipe.category] = (acc[recipe.category] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    return recipes.reduce(
+      (acc, recipe) => {
+        acc[recipe.category] = (acc[recipe.category] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
   }
 
-  async bulkCreate(userId: string, recipes: Array<{
-    title: string;
-    description: string;
-    ingredients: string[];
-    instructions: string[];
-    category: string;
-    prepTime: number;
-    cookTime: number;
-    servings: number;
-    difficulty: 'easy' | 'medium' | 'hard';
-  }>): Promise<Recipe[]> {
+  async bulkCreate(
+    userId: string,
+    recipes: Array<{
+      title: string;
+      description: string;
+      ingredients: string[];
+      instructions: string[];
+      category: string;
+      prepTime: number;
+      cookTime: number;
+      servings: number;
+      difficulty: 'easy' | 'medium' | 'hard';
+    }>,
+  ): Promise<Recipe[]> {
     const user = await this.usersService.findOne(userId);
     const created: Recipe[] = [];
 
@@ -336,4 +370,3 @@ export class RecipesService {
     return created;
   }
 }
-
