@@ -53,8 +53,16 @@ export class Recipe {
 
   @Prop()
   rating?: number;
+
+  @Prop({ default: true })
+  isPublic: boolean;
 }
 
 export type RecipeDocument = Recipe & Document;
 export const RecipeSchema = SchemaFactory.createForClass(Recipe);
 
+// Add indexes for better query performance
+RecipeSchema.index({ ownerId: 1, createdAt: -1 });
+RecipeSchema.index({ isPublic: 1, createdAt: -1 });
+RecipeSchema.index({ category: 1 });
+RecipeSchema.index({ title: 'text', description: 'text' });

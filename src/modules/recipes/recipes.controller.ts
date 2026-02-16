@@ -45,6 +45,38 @@ export class RecipesController {
     };
   }
 
+  // NEW ENDPOINT: Get all public recipes from all users
+  @Get('public')
+  @HttpCode(HttpStatus.OK)
+  async getAllPublicRecipes(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+    @Query('category') category?: string,
+    @Query('search') search?: string,
+  ) {
+    console.log('📚 [Recipes] Fetching all public recipes');
+    console.log('📚 [Recipes] Query params:', { page, limit, category, search });
+
+    const recipes = await this.recipesService.getAllPublicRecipes({
+      page: parseInt(page),
+      limit: parseInt(limit),
+      category,
+      search,
+    });
+
+    console.log('✅ [Recipes] Found', recipes.length, 'public recipes');
+
+    return {
+      success: true,
+      data: recipes,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: recipes.length,
+      },
+    };
+  }
+
   @Get()
   @UseGuards(OptionalJwtAuthGuard)
   async findAll(@Request() req) {
@@ -55,7 +87,7 @@ export class RecipesController {
         data: [],
       };
     }
-    
+
     const recipes = await this.recipesService.findAll(req.user.userId);
     return {
       success: true,
@@ -77,7 +109,7 @@ export class RecipesController {
         },
       };
     }
-    
+
     const stats = await this.recipesService.getStats(req.user.userId);
     return {
       success: true,
@@ -134,7 +166,11 @@ export class RecipesController {
     @Body() updateRecipeDto: UpdateRecipeDto,
     @Request() req,
   ) {
-    const recipe = await this.recipesService.update(id, req.user.userId, updateRecipeDto);
+    const recipe = await this.recipesService.update(
+      id,
+      req.user.userId,
+      updateRecipeDto,
+    );
     return {
       success: true,
       message: 'Recipe updated successfully',
@@ -145,7 +181,10 @@ export class RecipesController {
   @Patch(':id/favorite')
   @UseGuards(JwtAuthGuard)
   async toggleFavorite(@Param('id') id: string, @Request() req) {
-    const recipe = await this.recipesService.toggleFavorite(id, req.user.userId);
+    const recipe = await this.recipesService.toggleFavorite(
+      id,
+      req.user.userId,
+    );
     return {
       success: true,
       message: 'Favorite status updated',
@@ -168,9 +207,29 @@ export class RecipesController {
   async importRecipes(@Body() body: { recipes: any[] }, @Request() req) {
     try {
       // Strip image fields from every entry so the import is text-only
-      const sanitised = (body.recipes || []).map(({ featuredImage, images, _id, id, userId, isFavorite, createdAt, updatedAt, featured, ...rest }) => rest);
-      const created = await this.recipesService.bulkCreate(req.user.userId, sanitised);
-      return { success: true, message: `Imported ${created.length} recipe(s)`, data: created };
+      const sanitised = (body.recipes || []).map(
+        ({
+          featuredImage,
+          images,
+          _id,
+          id,
+          userId,
+          isFavorite,
+          createdAt,
+          updatedAt,
+          featured,
+          ...rest
+        }) => rest,
+      );
+      const created = await this.recipesService.bulkCreate(
+        req.user.userId,
+        sanitised,
+      );
+      return {
+        success: true,
+        message: `Imported ${created.length} recipe(s)`,
+        data: created,
+      };
     } catch (error: any) {
       return { success: false, message: error.message || 'Import failed' };
     }
@@ -180,7 +239,9 @@ export class RecipesController {
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
-    console.log('\n📸 [RecipesController] ============ IMAGE UPLOAD REQUEST ============');
+    console.log(
+      '\n📸 [RecipesController] ============ IMAGE UPLOAD REQUEST ============',
+    );
     console.log('📸 [RecipesController] Received file upload request');
     console.log('📸 [RecipesController] File details:', {
       fieldname: file?.fieldname,
@@ -198,25 +259,32 @@ export class RecipesController {
       // Validate file type
       const allowedMimeTypes = ImageUploadConfig.allowedFormats;
       if (!allowedMimeTypes.includes(file.mimetype)) {
-        console.error('❌ [RecipesController] Invalid file type:', file.mimetype);
-        throw new BadRequestException('Invalid file type. Only JPEG, PNG, and WebP images are allowed.');
+        console.error(
+          '❌ [RecipesController] Invalid file type:',
+          file.mimetype,
+        );
+        throw new BadRequestException(
+          'Invalid file type. Only JPEG, PNG, and WebP images are allowed.',
+        );
       }
 
       // Validate file size (5MB max)
       const maxSize = ImageUploadConfig.maxFileSize;
       if (file.size > maxSize) {
         console.error('❌ [RecipesController] File too large:', file.size);
-        throw new BadRequestException(`File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`);
+        throw new BadRequestException(
+          `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`,
+        );
       }
 
       // Convert file buffer to base64 for S3Service
       const base64Data = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
-      
+
       console.log('📤 [RecipesController] Uploading to S3...');
       const imageUrl = await this.s3Service.uploadImage(
         base64Data,
         ImageUploadConfig.folders.featuredImages,
-        'featured'
+        'featured',
       );
 
       console.log('✅ [RecipesController] Upload successful');
@@ -233,5 +301,3 @@ export class RecipesController {
     }
   }
 }
-
-
