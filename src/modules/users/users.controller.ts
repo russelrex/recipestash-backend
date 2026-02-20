@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Put, Request, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UserResponseDto } from './dto/user-response.dto';
 import { UsersService } from './users.service';
 
 @Controller('users')
@@ -14,7 +15,7 @@ export class UsersController {
       const user = await this.usersService.findOne(req.user.userId);
       return {
         success: true,
-        data: this.usersService.sanitizeUser(user),
+        data: new UserResponseDto(user),
       };
     } catch (error: any) {
       return {
@@ -32,7 +33,7 @@ export class UsersController {
       return {
         success: true,
         message: 'Profile updated successfully',
-        data: this.usersService.sanitizeUser(user),
+        data: new UserResponseDto(user),
       };
     } catch (error: any) {
       return {
@@ -47,7 +48,7 @@ export class UsersController {
     const user = await this.usersService.findOne(id);
     return {
       success: true,
-      data: user,
+      data: new UserResponseDto(user),
     };
   }
 

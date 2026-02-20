@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { UserResponseDto } from '../users/dto/user-response.dto';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -31,7 +32,7 @@ export class AuthService {
       success: true,
       message: 'Registration successful',
       data: {
-        user: this.usersService.sanitizeUser(user),
+        user: new UserResponseDto(user),
         token,
       },
     };
@@ -66,7 +67,7 @@ export class AuthService {
       success: true,
       message: 'Login successful',
       data: {
-        user: this.usersService.sanitizeUser(user),
+        user: new UserResponseDto(user),
         token,
       },
     };
@@ -76,7 +77,7 @@ export class AuthService {
     const user = await this.usersService.findOne(userId);
     return {
       success: true,
-      data: this.usersService.sanitizeUser(user),
+      data: new UserResponseDto(user),
     };
   }
 
@@ -89,7 +90,7 @@ export class AuthService {
         success: true,
         valid: true,
         data: {
-          user: this.usersService.sanitizeUser(user),
+          user: new UserResponseDto(user),
         },
       };
     } catch {

@@ -14,7 +14,20 @@ export class UsersService {
     private readonly s3Service: S3Service,
   ) {}
 
-  async create(name: string, email: string, password: string): Promise<User> {
+  async create(
+    name: string,
+    email: string,
+    password: string,
+    subscription?: {
+      isPremium?: boolean;
+      tier?: 'free' | 'premium' | 'pro';
+      startDate?: Date;
+      expiryDate?: Date;
+      status?: 'active' | 'expired' | 'cancelled';
+      paymentMethod?: string;
+      subscriptionId?: string;
+    },
+  ): Promise<User> {
     // Check if email already exists
     const existingUser = await this.findByEmail(email);
     if (existingUser) {
@@ -29,6 +42,17 @@ export class UsersService {
       name,
       email: email.toLowerCase(),
       password: hashedPassword,
+      ...(subscription && {
+        subscription: {
+          isPremium: subscription.isPremium ?? false,
+          tier: subscription.tier ?? 'free',
+          startDate: subscription.startDate,
+          expiryDate: subscription.expiryDate,
+          status: subscription.status ?? 'active',
+          paymentMethod: subscription.paymentMethod,
+          subscriptionId: subscription.subscriptionId,
+        },
+      }),
     });
 
     return createdUser.save();

@@ -64,22 +64,31 @@ export class PostsService {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
+        .lean()
         .exec(),
       this.postModel.countDocuments().exec(),
     ]);
 
+    const enrichedPosts = await this.enrichPostsWithAuthor(
+      posts as (Post & { _id: any; userId: string; userName: string })[],
+    );
+
     return {
-      posts,
+      posts: enrichedPosts,
       total,
       hasMore: skip + posts.length < total,
     };
   }
 
   async findByUser(userId: string): Promise<Post[]> {
-    return this.postModel
+    const posts = await this.postModel
       .find({ userId })
       .sort({ createdAt: -1 })
+      .lean()
       .exec();
+    return this.enrichPostsWithAuthor(
+      posts as (Post & { _id: any; userId: string; userName: string })[],
+    );
   }
 
   async findOne(id: string): Promise<Post> {
@@ -88,6 +97,18 @@ export class PostsService {
       throw new NotFoundException('Post not found');
     }
     return post;
+  }
+
+  /** Get a single post with author info (for API responses) */
+  async findOneWithAuthor(id: string) {
+    const post = await this.postModel.findById(id).lean().exec();
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+    const [enriched] = await this.enrichPostsWithAuthor([
+      post as Post & { _id: any; userId: string; userName: string },
+    ]);
+    return enriched;
   }
 
   async update(
@@ -200,10 +221,110 @@ export class PostsService {
   }
 
   async getPostsByRecipe(recipeId: string): Promise<Post[]> {
-    return this.postModel
+    const posts = await this.postModel
       .find({ recipeId })
       .sort({ createdAt: -1 })
+      .lean()
       .exec();
+    return this.enrichPostsWithAuthor(
+      posts as (Post & { _id: any; userId: string; userName: string })[],
+    );
+  }
+
+  /** Enrich posts with author object including subscription */
+  private async enrichPostsWithAuthor(
+    posts: (Post & { _id: any; userId: string; userName: string })[],
+  ): Promise<
+    (Post & {
+      author: {
+        _id: string;
+        name: string;
+        avatarUrl?: string | null;
+        subscription: {
+          isPremium: boolean;
+          tier: string;
+          status?: string;
+          startDate?: Date;
+          expiryDate?: Date;
+          paymentMethod?: string;
+          subscriptionId?: string;
+        };
+      };
+    })[]
+  > {
+    if (posts.length === 0) return [];
+    const userIds = [...new Set(posts.map((p) => p.userId))];
+    const userMap = new Map<
+      string,
+      {
+        _id: string;
+        name: string;
+        avatarUrl?: string | null;
+        subscription: {
+          isPremium: boolean;
+          tier: string;
+          status?: string;
+          startDate?: Date;
+          expiryDate?: Date;
+          paymentMethod?: string;
+          subscriptionId?: string;
+        };
+      }
+    >();
+    await Promise.all(
+      userIds.map(async (uid) => {
+        try {
+          const user = await this.usersService.findOne(uid);
+          const doc = (user as any).toObject ? (user as any).toObject() : user;
+          // Handle nested subscription or fallback to old schema
+          const subscription = doc.subscription
+            ? {
+                isPremium: doc.subscription.isPremium ?? false,
+                tier: doc.subscription.tier ?? 'free',
+                status: doc.subscription.status ?? 'active',
+                startDate: doc.subscription.startDate,
+                expiryDate: doc.subscription.expiryDate,
+                paymentMethod: doc.subscription.paymentMethod,
+                subscriptionId: doc.subscription.subscriptionId,
+              }
+            : {
+                isPremium: doc.isPremium ?? false,
+                tier: doc.subscriptionTier ?? 'free',
+                status: 'active',
+              };
+          userMap.set(uid, {
+            _id: uid,
+            name: doc.name,
+            avatarUrl: doc.avatarUrl ?? null,
+            subscription,
+          });
+        } catch {
+          userMap.set(uid, {
+            _id: uid,
+            name:
+              posts.find((p) => p.userId === uid)?.userName ?? 'Unknown User',
+            avatarUrl: null,
+            subscription: {
+              isPremium: false,
+              tier: 'free',
+              status: 'active',
+            },
+          });
+        }
+      }),
+    );
+    return posts.map((p) => {
+      const author = userMap.get(p.userId)!;
+      return {
+        ...p,
+        author: {
+          _id: author._id,
+          name: author.name,
+          avatarUrl: author.avatarUrl,
+          subscription: author.subscription,
+        },
+      };
+    });
   }
 }
 

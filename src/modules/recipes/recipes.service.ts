@@ -191,19 +191,34 @@ export class RecipesService {
         ownerIds.map(async (ownerId) => {
           try {
             const user = await this.usersService.findOne(ownerId);
+            const userDoc = (user as any).toObject
+              ? (user as any).toObject()
+              : user;
             return {
               _id: ownerId,
               name: user.name,
               email: user.email,
               avatarUrl: user.avatarUrl || null,
+              subscription: userDoc.subscription || {
+                isPremium: userDoc.isPremium ?? false,
+                tier: userDoc.subscriptionTier ?? 'free',
+                status: 'active',
+              },
             };
           } catch (error) {
             // If user not found, return basic info
             return {
               _id: ownerId,
-              name: recipes.find(r => r.ownerId === ownerId)?.ownerName || 'Unknown User',
+              name:
+                recipes.find((r) => r.ownerId === ownerId)?.ownerName ||
+                'Unknown User',
               email: null,
               avatarUrl: null,
+              subscription: {
+                isPremium: false,
+                tier: 'free',
+                status: 'active',
+              },
             };
           }
         })
@@ -235,6 +250,11 @@ export class RecipesService {
             _id: author?._id || recipe.ownerId,
             name: author?.name || recipe.ownerName || 'Unknown User',
             avatarUrl: author?.avatarUrl || null,
+            subscription: author?.subscription || {
+              isPremium: false,
+              tier: 'free',
+              status: 'active',
+            },
           },
         };
       });
