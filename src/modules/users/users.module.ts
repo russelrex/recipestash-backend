@@ -15,4 +15,3 @@ import { S3Module } from '../../common/services/s3.module';
   exports: [UsersService],
 })
 export class UsersModule {}
-

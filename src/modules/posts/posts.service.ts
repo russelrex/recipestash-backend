@@ -5,7 +5,12 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Post, PostDocument, Comment, CommentDocument } from './entities/post.entity';
+import {
+  Post,
+  PostDocument,
+  Comment,
+  CommentDocument,
+} from './entities/post.entity';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -30,7 +35,9 @@ export class PostsService {
 
     if (createPostDto.recipeId) {
       try {
-        const recipe = await this.recipesService.findOne(createPostDto.recipeId);
+        const recipe = await this.recipesService.findOne(
+          createPostDto.recipeId,
+        );
         recipeTitle = (recipe as any).title;
       } catch {
         createPostDto.recipeId = undefined;
@@ -124,7 +131,9 @@ export class PostsService {
 
     if (updatePostDto.recipeId && updatePostDto.recipeId !== post.recipeId) {
       try {
-        const recipe = await this.recipesService.findOne(updatePostDto.recipeId);
+        const recipe = await this.recipesService.findOne(
+          updatePostDto.recipeId,
+        );
         (post as any).recipeTitle = (recipe as any).title;
       } catch {
         updatePostDto.recipeId = undefined;
@@ -193,10 +202,7 @@ export class PostsService {
   async getComments(postId: string): Promise<Comment[]> {
     await this.findOne(postId);
 
-    return this.commentModel
-      .find({ postId })
-      .sort({ createdAt: 1 })
-      .exec();
+    return this.commentModel.find({ postId }).sort({ createdAt: 1 }).exec();
   }
 
   async deleteComment(commentId: string, userId: string): Promise<void> {
@@ -327,4 +333,3 @@ export class PostsService {
     });
   }
 }
-

@@ -1,5 +1,8 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { ImageUploadConfig, ImageUploadMessages } from '../config/image-upload.config';
+import {
+  ImageUploadConfig,
+  ImageUploadMessages,
+} from '../config/image-upload.config';
 
 interface ImageMetadata {
   format: string;
@@ -10,7 +13,10 @@ interface ImageMetadata {
 
 @Injectable()
 export class ImageValidationService {
-  validateBase64Image(base64Data: string, imageType: 'featured' | 'additional' = 'additional'): void {
+  validateBase64Image(
+    base64Data: string,
+    imageType: 'featured' | 'additional' = 'additional',
+  ): void {
     // Extract format from base64 string
     const matches = base64Data.match(/^data:image\/(\w+);base64,(.+)$/);
     if (!matches) {
@@ -39,12 +45,15 @@ export class ImageValidationService {
       throw new BadRequestException(
         imageType === 'featured'
           ? ImageUploadMessages.featuredImageTooLarge
-          : ImageUploadMessages.additionalImageTooLarge
+          : ImageUploadMessages.additionalImageTooLarge,
       );
     }
   }
 
-  validateImageArray(images: string[], maxCount: number = ImageUploadConfig.maxAdditionalImages): void {
+  validateImageArray(
+    images: string[],
+    maxCount: number = ImageUploadConfig.maxAdditionalImages,
+  ): void {
     if (images.length > maxCount) {
       throw new BadRequestException(ImageUploadMessages.tooManyImages);
     }

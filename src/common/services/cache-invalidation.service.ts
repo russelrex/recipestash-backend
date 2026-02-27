@@ -11,11 +11,16 @@ export class CacheInvalidationService {
   constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {
     // Access underlying Redis client for pattern operations
     try {
-      const store = (this.cacheManager as any).store || (this.cacheManager as any).stores?.[0];
-      this.redis = store?.client || store?.getClient?.() || store?.store?.client;
-      
+      const store =
+        (this.cacheManager as any).store ||
+        (this.cacheManager as any).stores?.[0];
+      this.redis =
+        store?.client || store?.getClient?.() || store?.store?.client;
+
       if (!this.redis) {
-        this.logger.warn('Redis client not available - pattern operations will be limited');
+        this.logger.warn(
+          'Redis client not available - pattern operations will be limited',
+        );
       }
     } catch (error) {
       this.logger.warn('Could not access Redis client:', error.message);
@@ -29,7 +34,7 @@ export class CacheInvalidationService {
     const keysToDelete: string[] = [
       // Specific recipe
       `recipes:detail:${recipeId}:public:v1`,
-      
+
       // User's recipe list
       `users:recipes:${userId}:list:v1`,
     ];
@@ -42,7 +47,9 @@ export class CacheInvalidationService {
     keysToDelete.push(...listKeys, ...trendingKeys, ...searchKeys);
 
     await this.deleteKeys(keysToDelete);
-    this.logger.debug(`Invalidated ${keysToDelete.length} cache keys for recipe ${recipeId}`);
+    this.logger.debug(
+      `Invalidated ${keysToDelete.length} cache keys for recipe ${recipeId}`,
+    );
   }
 
   /**
@@ -54,7 +61,7 @@ export class CacheInvalidationService {
       `users:profile:${userId}:stats:v1`,
       `users:profile:${userId}:followers:v1`,
       `users:profile:${userId}:following:v1`,
-      
+
       // User's recipes (profile changes might affect display)
       `users:recipes:${userId}:list:v1`,
     ];
@@ -70,7 +77,7 @@ export class CacheInvalidationService {
     const keysToDelete = [
       // Specific post
       `posts:detail:${postId}:public:v1`,
-      
+
       // Author's posts
       `posts:list:${authorId}:v1`,
     ];
@@ -82,28 +89,35 @@ export class CacheInvalidationService {
     keysToDelete.push(...feedKeys, ...newsfeedKeys);
 
     await this.deleteKeys(keysToDelete);
-    this.logger.debug(`Invalidated ${keysToDelete.length} cache keys for post ${postId}`);
+    this.logger.debug(
+      `Invalidated ${keysToDelete.length} cache keys for post ${postId}`,
+    );
   }
 
   /**
    * Follow/Unfollow Invalidation Rules
    */
-  async invalidateFollowRelationship(userId: string, targetUserId: string): Promise<void> {
+  async invalidateFollowRelationship(
+    userId: string,
+    targetUserId: string,
+  ): Promise<void> {
     const keysToDelete = [
       // Both users' follower/following counts
       `users:profile:${userId}:stats:v1`,
       `users:profile:${targetUserId}:stats:v1`,
-      
+
       // Follower/following lists
       `users:profile:${userId}:following:v1`,
       `users:profile:${targetUserId}:followers:v1`,
-      
+
       // Feeds (following affects what appears in feed)
-      ...await this.findKeysByPattern(`posts:feed:${userId}:*`),
+      ...(await this.findKeysByPattern(`posts:feed:${userId}:*`)),
     ];
 
     await this.deleteKeys(keysToDelete);
-    this.logger.debug(`Invalidated cache keys for follow relationship ${userId} -> ${targetUserId}`);
+    this.logger.debug(
+      `Invalidated cache keys for follow relationship ${userId} -> ${targetUserId}`,
+    );
   }
 
   /**
@@ -141,7 +155,7 @@ export class CacheInvalidationService {
           'MATCH',
           pattern,
           'COUNT',
-          100
+          100,
         );
         cursor = newCursor;
         keys.push(...foundKeys);
@@ -159,10 +173,10 @@ export class CacheInvalidationService {
    */
   private async deleteKeys(keys: string[]): Promise<void> {
     if (keys.length === 0) return;
-    
+
     try {
       // Delete keys individually (cache-manager doesn't support batch delete)
-      await Promise.all(keys.map(key => this.cacheManager.del(key)));
+      await Promise.all(keys.map((key) => this.cacheManager.del(key)));
     } catch (error) {
       this.logger.error(`Error deleting cache keys:`, error);
     }

@@ -55,7 +55,12 @@ export class RecipesController {
     @Query('search') search?: string,
   ) {
     console.log('📚 [Recipes] Fetching all public recipes');
-    console.log('📚 [Recipes] Query params:', { page, limit, category, search });
+    console.log('📚 [Recipes] Query params:', {
+      page,
+      limit,
+      category,
+      search,
+    });
 
     const recipes = await this.recipesService.getAllPublicRecipes({
       page: parseInt(page),
@@ -235,7 +240,7 @@ export class RecipesController {
     }
   }
 
-  @Post('upload-image')
+  @Post('profile-picture')
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
@@ -297,6 +302,74 @@ export class RecipesController {
       };
     } catch (error: any) {
       console.error('❌ [RecipesController] Upload failed:', error);
+      throw error;
+    }
+  }
+
+  @Post('step-image')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadStepImage(@UploadedFile() file: Express.Multer.File) {
+    console.log(
+      '\n📸 [RecipesController] ============ STEP IMAGE UPLOAD REQUEST ============',
+    );
+    console.log('📸 [RecipesController] Received step image upload request');
+    console.log('📸 [RecipesController] File details:', {
+      fieldname: file?.fieldname,
+      originalname: file?.originalname,
+      mimetype: file?.mimetype,
+      size: file?.size,
+    });
+
+    if (!file) {
+      console.error('❌ [RecipesController] No file provided in request');
+      throw new BadRequestException('No file provided');
+    }
+
+    try {
+      const allowedMimeTypes = ImageUploadConfig.allowedFormats;
+      if (!allowedMimeTypes.includes(file.mimetype)) {
+        console.error(
+          '❌ [RecipesController] Invalid step image file type:',
+          file.mimetype,
+        );
+        throw new BadRequestException(
+          'Invalid file type. Only JPEG, PNG, and WebP images are allowed.',
+        );
+      }
+
+      const maxSize = ImageUploadConfig.maxFileSize;
+      if (file.size > maxSize) {
+        console.error(
+          '❌ [RecipesController] Step image file too large:',
+          file.size,
+        );
+        throw new BadRequestException(
+          `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`,
+        );
+      }
+
+      const base64Data = `data:${file.mimetype};base64,${file.buffer.toString(
+        'base64',
+      )}`;
+
+      console.log('📤 [RecipesController] Uploading step image to S3...');
+      const imageUrl = await this.s3Service.uploadImage(
+        base64Data,
+        ImageUploadConfig.folders.additionalImages,
+        'additional',
+      );
+
+      console.log('✅ [RecipesController] Step image upload successful');
+      console.log('✅ [RecipesController] Step image URL:', imageUrl);
+
+      return {
+        url: imageUrl,
+        filename: file.originalname,
+        size: file.size,
+      };
+    } catch (error: any) {
+      console.error('❌ [RecipesController] Step image upload failed:', error);
       throw error;
     }
   }

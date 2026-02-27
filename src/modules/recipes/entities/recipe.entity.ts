@@ -1,6 +1,26 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
+@Schema()
+export class RecipeStep {
+  @Prop({ required: true })
+  stepNumber: number;
+
+  @Prop({ required: true })
+  instruction: string;
+
+  @Prop()
+  imageUrl?: string;
+
+  @Prop()
+  duration?: number;
+
+  @Prop()
+  tips?: string;
+}
+
+export const RecipeStepSchema = SchemaFactory.createForClass(RecipeStep);
+
 @Schema({ timestamps: true })
 export class Recipe {
   @Prop({ required: true })
@@ -56,6 +76,9 @@ export class Recipe {
 
   @Prop({ default: true })
   isPublic: boolean;
+
+  @Prop({ type: [RecipeStepSchema], default: [] })
+  steps?: RecipeStep[];
 }
 
 export type RecipeDocument = Recipe & Document;

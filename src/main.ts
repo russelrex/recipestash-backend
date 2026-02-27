@@ -37,11 +37,12 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0');
 
   console.log(`✅ Application is running on http://0.0.0.0:${port}/api`);
-  console.log(`📸 Upload endpoint: http://0.0.0.0:${port}/api/recipes/upload-image`);
+  console.log(
+    `📸 Upload endpoint: http://0.0.0.0:${port}/api/recipes/profile-picture`,
+  );
 }
 
 bootstrap().catch((error) => {
   console.error('❌ Application failed to start:', error);
   process.exit(1);
 });
-

@@ -150,7 +150,10 @@ export class RecipesService {
   }
 
   async getAllPublicRecipes(query: PublicRecipesQuery) {
-    console.log('🔍 [RecipesService] Fetching public recipes with query:', query);
+    console.log(
+      '🔍 [RecipesService] Fetching public recipes with query:',
+      query,
+    );
 
     const { page, limit, category, search } = query;
     const skip = (page - 1) * limit;
@@ -186,7 +189,7 @@ export class RecipesService {
       console.log('✅ [RecipesService] Found', recipes.length, 'recipes');
 
       // Get unique owner IDs to fetch user details
-      const ownerIds = [...new Set(recipes.map(r => r.ownerId))];
+      const ownerIds = [...new Set(recipes.map((r) => r.ownerId))];
       const users = await Promise.all(
         ownerIds.map(async (ownerId) => {
           try {
@@ -221,14 +224,14 @@ export class RecipesService {
               },
             };
           }
-        })
+        }),
       );
 
       // Create a map for quick lookup
-      const userMap = new Map(users.map(u => [u._id, u]));
+      const userMap = new Map(users.map((u) => [u._id, u]));
 
       // Transform data to include user info in clean format
-      return recipes.map(recipe => {
+      return recipes.map((recipe) => {
         const author = userMap.get(recipe.ownerId);
         const recipeDoc = recipe as any;
         return {
@@ -244,7 +247,7 @@ export class RecipesService {
           rating: recipe.rating || null,
           createdAt: recipeDoc.createdAt,
           updatedAt: recipeDoc.updatedAt,
-          
+
           // User information
           author: {
             _id: author?._id || recipe.ownerId,
@@ -259,7 +262,10 @@ export class RecipesService {
         };
       });
     } catch (error) {
-      console.error('❌ [RecipesService] Error fetching public recipes:', error);
+      console.error(
+        '❌ [RecipesService] Error fetching public recipes:',
+        error,
+      );
       throw error;
     }
   }

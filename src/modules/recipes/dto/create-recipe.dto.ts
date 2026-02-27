@@ -7,7 +7,30 @@ import {
   IsOptional,
   IsBoolean,
   ArrayMaxSize,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class RecipeStepDto {
+  @IsNumber()
+  stepNumber: number;
+
+  @IsString()
+  @IsNotEmpty()
+  instruction: string;
+
+  @IsString()
+  @IsOptional()
+  imageUrl?: string;
+
+  @IsNumber()
+  @IsOptional()
+  duration?: number;
+
+  @IsString()
+  @IsOptional()
+  tips?: string;
+}
 
 export class CreateRecipeDto {
   @IsString()
@@ -75,5 +98,10 @@ export class CreateRecipeDto {
   @IsNumber()
   @IsOptional()
   rating?: number;
-}
 
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RecipeStepDto)
+  @IsOptional()
+  steps?: RecipeStepDto[];
+}

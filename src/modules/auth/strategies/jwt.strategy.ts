@@ -27,7 +27,7 @@
 //     if (!payload || !payload.sub) {
 //       throw new UnauthorizedException('Invalid token payload');
 //     }
-    
+
 //     try {
 //       const user = await this.usersService.findOne(payload.sub);
 //       if (!user) {
@@ -53,7 +53,7 @@ import { ConfigService } from '@nestjs/config';
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private usersService: UsersService,
-    private configService: ConfigService
+    private configService: ConfigService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -63,23 +63,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    // eslint-disable-next-line no-console
     console.log('[JwtStrategy] validate', {
       payload,
     });
     if (!payload || !payload.sub) {
       throw new UnauthorizedException('Invalid token payload');
     }
-    
+
     try {
-    const user = await this.usersService.findOne(payload.sub);
-      // eslint-disable-next-line no-console
+      const user = await this.usersService.findOne(payload.sub);
+
       console.log('[JwtStrategy] user', {
         user,
       });
-    if (!user) {
+      if (!user) {
         throw new UnauthorizedException('User not found');
-    }
+      }
       return {
         userId: payload.sub,
         email: user.email,
@@ -90,6 +89,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         throw error;
       }
       throw new UnauthorizedException('Failed to validate user');
+    }
   }
-}
 }

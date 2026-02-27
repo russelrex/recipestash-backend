@@ -2,7 +2,12 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PostsController } from './posts.controller';
 import { PostsService } from './posts.service';
-import { Post, PostSchema, Comment, CommentSchema } from './entities/post.entity';
+import {
+  Post,
+  PostSchema,
+  Comment,
+  CommentSchema,
+} from './entities/post.entity';
 import { RecipesModule } from '../recipes/recipes.module';
 import { UsersModule } from '../users/users.module';
 import { FollowsModule } from '../follows/follows.module';
@@ -22,4 +27,3 @@ import { FollowsModule } from '../follows/follows.module';
   exports: [PostsService],
 })
 export class PostsModule {}
-

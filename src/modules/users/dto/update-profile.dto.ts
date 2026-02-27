@@ -12,6 +12,11 @@ export class UpdateProfileDto {
   @MaxLength(200, { message: 'Bio must not exceed 200 characters' })
   bio?: string;
 
+  // New: URL to already-uploaded profile picture (e.g. from S3)
+  @IsString()
+  @IsOptional()
+  profilePicture?: string;
+
   @IsString()
   @IsOptional()
   avatarUrl?: string; // base64 data URI | '' → clear

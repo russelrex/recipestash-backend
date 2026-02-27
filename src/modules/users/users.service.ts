@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from './entities/user.entity';
@@ -129,14 +133,12 @@ export class UsersService {
     const { password, ...sanitized } = (user as any).toObject
       ? (user as any).toObject()
       : user;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     return sanitized;
   }
 
-  async updateProfile(
-    userId: string,
-    dto: UpdateProfileDto,
-  ): Promise<User> {
+  async updateProfile(userId: string, dto: UpdateProfileDto): Promise<User> {
+    console.log(dto);
     const user = await this.findOne(userId);
 
     const updateData: Partial<User> = {};
@@ -147,6 +149,12 @@ export class UsersService {
 
     if (dto.bio !== undefined) {
       updateData.bio = dto.bio || undefined; // '' → clear
+    }
+
+    // Support directly setting a profile picture URL (e.g. from separate upload endpoint)
+    if (dto.profilePicture !== undefined) {
+      (updateData as any).profilePicture =
+        dto.profilePicture === '' ? undefined : dto.profilePicture;
     }
 
     if (dto.avatarUrl !== undefined) {
@@ -179,11 +187,7 @@ export class UsersService {
     }
 
     const updatedUser = await this.userModel
-      .findByIdAndUpdate(
-        userId,
-        updateData,
-        { new: true, runValidators: true },
-      )
+      .findByIdAndUpdate(userId, updateData, { new: true, runValidators: true })
       .exec();
 
     if (!updatedUser) {
@@ -193,12 +197,15 @@ export class UsersService {
     return updatedUser;
   }
 
-  async updatePreferences(userId: string, prefs: {
-    notificationsEnabled?: boolean;
-    dietaryRestrictions?: string[];
-    measurementUnit?: 'metric' | 'imperial';
-    privacyProfilePublic?: boolean;
-  }): Promise<User> {
+  async updatePreferences(
+    userId: string,
+    prefs: {
+      notificationsEnabled?: boolean;
+      dietaryRestrictions?: string[];
+      measurementUnit?: 'metric' | 'imperial';
+      privacyProfilePublic?: boolean;
+    },
+  ): Promise<User> {
     const user = await this.findOne(userId);
     const updateData: Partial<User> = {};
 
@@ -216,11 +223,7 @@ export class UsersService {
     }
 
     const updatedUser = await this.userModel
-      .findByIdAndUpdate(
-        userId,
-        updateData,
-        { new: true, runValidators: true },
-      )
+      .findByIdAndUpdate(userId, updateData, { new: true, runValidators: true })
       .exec();
 
     if (!updatedUser) {
@@ -230,4 +233,3 @@ export class UsersService {
     return updatedUser;
   }
 }
-

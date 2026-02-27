@@ -50,6 +50,9 @@ export class User {
   bio?: string;
 
   @Prop()
+  profilePicture?: string;
+
+  @Prop()
   avatarUrl?: string; // public S3 URL
 
   @Prop({ default: true })

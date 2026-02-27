@@ -33,14 +33,12 @@ export class AuthController {
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
     try {
-      // eslint-disable-next-line no-console
       console.log('[AuthController] Login attempt for:', loginDto.email);
       const result = await this.authService.login(loginDto);
-      // eslint-disable-next-line no-console
+
       console.log('[AuthController] Login successful');
       return result;
     } catch (error: any) {
-      // eslint-disable-next-line no-console
       console.error('[AuthController] Login error:', error);
       return {
         success: false,
@@ -76,4 +74,3 @@ export class AuthController {
     };
   }
 }
-
