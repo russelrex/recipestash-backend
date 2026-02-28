@@ -11,25 +11,17 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-class RecipeStepDto {
+export class RecipeStepDto {
   @IsNumber()
   stepNumber: number;
 
   @IsString()
-  @IsNotEmpty()
-  instruction: string;
+  @IsNotEmpty({ message: 'Step description is required' })
+  description: string;
 
-  @IsString()
   @IsOptional()
+  @IsString()
   imageUrl?: string;
-
-  @IsNumber()
-  @IsOptional()
-  duration?: number;
-
-  @IsString()
-  @IsOptional()
-  tips?: string;
 }
 
 export class CreateRecipeDto {

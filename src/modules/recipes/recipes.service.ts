@@ -9,7 +9,7 @@ import { Model } from 'mongoose';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { Recipe, RecipeDocument } from './entities/recipe.entity';
-import { CreateRecipeDto } from './dto/create-recipe.dto';
+import { CreateRecipeDto, RecipeStepDto } from './dto/create-recipe.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
 import { S3Service } from '../../common/services/s3.service';
 import { ImageUploadConfig } from '../../common/config/image-upload.config';
@@ -35,6 +35,34 @@ export class RecipesService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private cacheInvalidation: CacheInvalidationService,
   ) {}
+
+  /** Map frontend steps (description) to DB shape (instruction) */
+  private mapStepsForDb(
+    steps: Array<{ stepNumber: number; description: string; imageUrl?: string }>,
+  ): Array<{ stepNumber: number; instruction: string; imageUrl?: string }> {
+    return steps.map((s) => ({
+      stepNumber: s.stepNumber,
+      instruction: s.description,
+      imageUrl: s.imageUrl,
+    }));
+  }
+
+  /** Map recipe from DB (instruction) to API response (description) for frontend */
+  private mapRecipeForResponse(recipe: any): any {
+    if (!recipe) return recipe;
+    const out = { ...recipe };
+    if (out._id && out._id.toString) out._id = out._id.toString();
+    if (Array.isArray(out.steps) && out.steps.length > 0) {
+      out.steps = out.steps.map(
+        (s: { stepNumber: number; instruction: string; imageUrl?: string }) => ({
+          stepNumber: s.stepNumber,
+          description: s.instruction,
+          imageUrl: s.imageUrl,
+        }),
+      );
+    }
+    return out;
+  }
 
   async create(createRecipeDto: CreateRecipeDto): Promise<Recipe> {
     // Upload featured image if provided (base64)
@@ -105,8 +133,14 @@ export class RecipesService {
       }
     }
 
+    const { steps: stepsFromDto, ...restDto } = createRecipeDto;
+    const stepsForDb = stepsFromDto?.length
+      ? this.mapStepsForDb(stepsFromDto)
+      : undefined;
+
     const createdRecipe = new this.recipeModel({
-      ...createRecipeDto,
+      ...restDto,
+      steps: stepsForDb,
       featuredImage: featuredImageUrl,
       images: imageUrls,
       isFavorite: createRecipeDto.isFavorite ?? false,
@@ -122,7 +156,7 @@ export class RecipesService {
       saved.ownerId.toString(),
     );
 
-    return saved;
+    return this.mapRecipeForResponse(saved.toObject ? saved.toObject() : saved) as Recipe;
   }
 
   async findAll(ownerId: string): Promise<Recipe[]> {
@@ -142,11 +176,12 @@ export class RecipesService {
 
     // Fetch from DB
     const recipes = await this.recipeModel.find({ ownerId }).lean().exec();
+    const mapped = (recipes as any[]).map((r) => this.mapRecipeForResponse(r));
 
     // Cache result
-    await this.cacheManager.set(cacheKey, recipes, CACHE_TTL.USER_RECIPES);
+    await this.cacheManager.set(cacheKey, mapped, CACHE_TTL.USER_RECIPES);
 
-    return recipes as Recipe[];
+    return mapped as Recipe[];
   }
 
   async getAllPublicRecipes(query: PublicRecipesQuery) {
@@ -282,7 +317,7 @@ export class RecipesService {
     // Try cache
     const cached = await this.cacheManager.get<Recipe>(cacheKey);
     if (cached) {
-      return cached;
+      return this.mapRecipeForResponse(cached) as Recipe;
     }
 
     // Fetch from DB
@@ -294,25 +329,31 @@ export class RecipesService {
     // Cache result
     await this.cacheManager.set(cacheKey, recipe, CACHE_TTL.RECIPE_DETAIL);
 
-    return recipe as Recipe;
+    return this.mapRecipeForResponse(recipe) as Recipe;
   }
 
   async findByCategory(ownerId: string, category: string): Promise<Recipe[]> {
-    return this.recipeModel
+    const recipes = await this.recipeModel
       .find({
         ownerId,
         category: new RegExp(`^${category}$`, 'i'),
       })
+      .lean()
       .exec();
+    return (recipes as any[]).map((r) => this.mapRecipeForResponse(r)) as Recipe[];
   }
 
   async findFavorites(ownerId: string): Promise<Recipe[]> {
-    return this.recipeModel.find({ ownerId, isFavorite: true }).exec();
+    const recipes = await this.recipeModel
+      .find({ ownerId, isFavorite: true })
+      .lean()
+      .exec();
+    return (recipes as any[]).map((r) => this.mapRecipeForResponse(r)) as Recipe[];
   }
 
   async search(ownerId: string, query: string): Promise<Recipe[]> {
     const lowerQuery = query.toLowerCase();
-    return this.recipeModel
+    const recipes = await this.recipeModel
       .find({
         ownerId,
         $or: [
@@ -321,7 +362,9 @@ export class RecipesService {
           { category: { $regex: lowerQuery, $options: 'i' } },
         ],
       })
+      .lean()
       .exec();
+    return (recipes as any[]).map((r) => this.mapRecipeForResponse(r)) as Recipe[];
   }
 
   async update(
@@ -385,16 +428,24 @@ export class RecipesService {
       }
     }
 
-    Object.assign(recipe as any, {
-      ...updateRecipeDto,
-    });
+    const dtoWithMappedSteps = { ...updateRecipeDto };
+    if (dtoWithMappedSteps.steps !== undefined) {
+      (dtoWithMappedSteps as any).steps = this.mapStepsForDb(
+        dtoWithMappedSteps.steps as RecipeStepDto[],
+      );
+    }
 
-    await (recipe as any).save();
+    Object.assign(recipe as any, dtoWithMappedSteps);
+
+    const updatedDoc = await this.recipeModel
+      .findByIdAndUpdate(id, { $set: recipe }, { new: true })
+      .lean()
+      .exec();
 
     // Invalidate cache
     await this.cacheInvalidation.invalidateRecipe(id, ownerId);
 
-    return recipe;
+    return this.mapRecipeForResponse(updatedDoc) as Recipe;
   }
 
   async toggleFavorite(id: string, ownerId: string): Promise<Recipe> {
