@@ -34,6 +34,10 @@ export class Post {
 export type PostDocument = Post & Document;
 export const PostSchema = SchemaFactory.createForClass(Post);
 
+PostSchema.index({ userId: 1, createdAt: -1 });
+PostSchema.index({ createdAt: -1 });
+PostSchema.index({ likes: 1 });
+
 @Schema({ timestamps: true })
 export class Comment {
   @Prop({ required: true })

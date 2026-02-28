@@ -59,6 +59,69 @@ export class PostsService {
     return createdPost.save();
   }
 
+  /**
+   * Get paginated posts with author info and current user's like status.
+   */
+  async getPosts(
+    page: number = 1,
+    limit: number = 5,
+    userId: string,
+  ): Promise<{
+    posts: any[];
+    hasMore: boolean;
+    page: number;
+    totalCount: number;
+  }> {
+    console.log('💾 [PostsService] Fetching posts');
+    console.log('💾 [PostsService] Page:', page, 'Limit:', limit);
+    console.log('💾 [PostsService] User ID:', userId);
+
+    const skip = (page - 1) * limit;
+
+    const posts = await this.postModel
+      .find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit + 1)
+      .lean()
+      .exec();
+
+    const hasMore = posts.length > limit;
+    const postsToReturn = hasMore ? posts.slice(0, limit) : posts;
+
+    console.log('💾 [PostsService] Found', postsToReturn.length, 'posts');
+    console.log('💾 [PostsService] Has more:', hasMore);
+
+    const enriched = await this.enrichPostsWithAuthor(
+      postsToReturn as (Post & { _id: any; userId: string; userName: string })[],
+    );
+
+    const postsWithLikeStatus = enriched.map((p, i) => {
+      const raw = postsToReturn[i] as any;
+      const likes = raw?.likes ?? [];
+      const isLiked =
+        Array.isArray(likes) && userId
+          ? likes.some((id: string) => String(id) === String(userId))
+          : false;
+      return {
+        ...p,
+        id: (p as any)._id?.toString?.() ?? (p as any).id,
+        likesCount: raw?.likesCount ?? 0,
+        commentsCount: raw?.commentsCount ?? 0,
+        isLiked,
+      };
+    });
+
+    const totalCount = await this.postModel.countDocuments().exec();
+
+    return {
+      posts: postsWithLikeStatus,
+      hasMore,
+      page,
+      totalCount,
+    };
+  }
+
   async findAll(
     page = 1,
     limit = 20,
@@ -118,6 +181,92 @@ export class PostsService {
     return enriched;
   }
 
+  /**
+   * Update post content (edit). Only the owner can update.
+   * Returns enriched post with author and isLiked for the current user.
+   */
+  async updatePost(
+    postId: string,
+    userId: string,
+    content: string,
+  ): Promise<any> {
+    console.log('💾 [PostsService] Updating post:', postId);
+    console.log('💾 [PostsService] User:', userId);
+
+    const post = await this.postModel.findById(postId).exec();
+
+    if (!post) {
+      console.error('❌ [PostsService] Post not found');
+      throw new NotFoundException('Post not found');
+    }
+
+    const postUserId =
+      typeof (post as any).userId === 'string'
+        ? (post as any).userId
+        : String((post as any).userId);
+    if (postUserId !== userId) {
+      console.error(
+        '❌ [PostsService] User not authorized to edit this post',
+      );
+      throw new ForbiddenException(
+        'You are not authorized to edit this post',
+      );
+    }
+
+    (post as any).content = content;
+    await (post as any).save();
+
+    console.log('✅ [PostsService] Post updated successfully');
+
+    const enriched = await this.findOneWithAuthor(postId);
+    const raw = await this.postModel.findById(postId).lean().exec();
+    const likes = (raw as any)?.likes ?? [];
+    const isLiked =
+      Array.isArray(likes) &&
+      likes.some((id: string) => String(id) === String(userId));
+
+    return {
+      ...enriched,
+      id: (enriched as any)._id?.toString?.() ?? (enriched as any).id ?? postId,
+      likesCount: (raw as any)?.likesCount ?? 0,
+      commentsCount: (raw as any)?.commentsCount ?? 0,
+      isLiked,
+    };
+  }
+
+  /**
+   * Delete a post. Only the owner can delete. Also deletes associated comments.
+   */
+  async deletePost(postId: string, userId: string): Promise<void> {
+    console.log('💾 [PostsService] Deleting post:', postId);
+    console.log('💾 [PostsService] User:', userId);
+
+    const post = await this.postModel.findById(postId).exec();
+
+    if (!post) {
+      console.error('❌ [PostsService] Post not found');
+      throw new NotFoundException('Post not found');
+    }
+
+    const postUserId =
+      typeof (post as any).userId === 'string'
+        ? (post as any).userId
+        : String((post as any).userId);
+    if (postUserId !== userId) {
+      console.error(
+        '❌ [PostsService] User not authorized to delete this post',
+      );
+      throw new ForbiddenException(
+        'You are not authorized to delete this post',
+      );
+    }
+
+    await this.commentModel.deleteMany({ postId }).exec();
+    await this.postModel.deleteOne({ _id: postId }).exec();
+
+    console.log('✅ [PostsService] Post deleted successfully');
+  }
+
   async update(
     id: string,
     userId: string,
@@ -150,30 +299,56 @@ export class PostsService {
   }
 
   async remove(id: string, userId: string): Promise<void> {
-    const post = await this.findOne(id);
-
-    if (post.userId !== userId) {
-      throw new ForbiddenException('You can only delete your own posts');
-    }
-
-    await this.postModel.deleteOne({ _id: id }).exec();
-    await this.commentModel.deleteMany({ postId: id }).exec();
+    await this.deletePost(id, userId);
   }
 
-  async toggleLike(postId: string, userId: string): Promise<Post> {
-    const post = await this.findOne(postId);
+  async toggleLike(
+    postId: string,
+    userId: string,
+  ): Promise<{ postId: string; likesCount: number; isLiked: boolean }> {
+    console.log('💾 [PostsService] Toggling like');
+    console.log('💾 [PostsService] Post ID:', postId);
+    console.log('💾 [PostsService] User ID:', userId);
 
-    const likeIndex = (post as any).likes.indexOf(userId);
+    const post = await this.postModel.findById(postId).exec();
 
-    if (likeIndex > -1) {
-      (post as any).likes.splice(likeIndex, 1);
-    } else {
-      (post as any).likes.push(userId);
+    if (!post) {
+      throw new NotFoundException('Post not found');
     }
 
-    (post as any).likesCount = (post as any).likes.length;
+    const likes: string[] = Array.isArray((post as any).likes)
+      ? (post as any).likes.map((id: any) => String(id))
+      : [];
+    const userIdStr = String(userId);
+    const likeIndex = likes.findIndex((id) => id === userIdStr);
+
+    let isLiked: boolean;
+
+    if (likeIndex > -1) {
+      likes.splice(likeIndex, 1);
+      (post as any).likes = likes;
+      (post as any).likesCount = Math.max(0, (post as any).likesCount - 1);
+      isLiked = false;
+      console.log('💾 [PostsService] Like removed');
+    } else {
+      likes.push(userIdStr);
+      (post as any).likes = likes;
+      (post as any).likesCount = ((post as any).likesCount || 0) + 1;
+      isLiked = true;
+      console.log('💾 [PostsService] Like added');
+    }
+
     await (post as any).save();
-    return post as any;
+
+    console.log('✅ [PostsService] Post saved');
+    console.log('✅ [PostsService] New likes count:', (post as any).likesCount);
+    console.log('✅ [PostsService] Is liked:', isLiked);
+
+    return {
+      postId: (post as any)._id.toString(),
+      likesCount: (post as any).likesCount,
+      isLiked,
+    };
   }
 
   async createComment(

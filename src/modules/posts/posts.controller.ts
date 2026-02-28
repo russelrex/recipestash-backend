@@ -5,10 +5,13 @@ import {
   Body,
   Patch,
   Param,
+  Put,
   Delete,
   UseGuards,
   Request,
   Query,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -32,17 +35,42 @@ export class PostsController {
     };
   }
 
+  /** Paginated feed: requires auth, returns posts with isLiked for current user */
   @Get()
+  @UseGuards(JwtAuthGuard)
+  async getPosts(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '5',
+    @Request() req: any,
+  ) {
+    console.log('\n📰 [PostsController] ============ GET POSTS ============');
+    console.log('📰 [PostsController] Page:', page);
+    console.log('📰 [PostsController] Limit:', limit);
+    console.log('📰 [PostsController] User ID:', req.user?.userId);
+
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 5;
+
+    const result = await this.postsService.getPosts(
+      pageNum,
+      limitNum,
+      req.user.userId,
+    );
+
+    console.log('✅ [PostsController] Returned', result.posts.length, 'posts');
+    console.log('✅ [PostsController] Has more:', result.hasMore);
+
+    return result;
+  }
+
+  /** Legacy paginated list (no auth required, no isLiked) */
+  @Get('list')
   @UseGuards(OptionalJwtAuthGuard)
   async findAll(@Query('page') page?: string, @Query('limit') limit?: string) {
     const pageNum = parseInt(page || '1', 10);
     const limitNum = parseInt(limit || '20', 10);
-
     const result = await this.postsService.findAll(pageNum, limitNum);
-    return {
-      success: true,
-      data: result,
-    };
+    return { success: true, data: result };
   }
 
   @Get('user/:userId')
@@ -82,6 +110,34 @@ export class PostsController {
     };
   }
 
+  /** Edit post (content only). PUT for spec compatibility. */
+  @Put(':id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async updatePost(
+    @Param('id') postId: string,
+    @Body() updateData: { content: string },
+    @Request() req: any,
+  ) {
+    console.log('\n✏️ [PostsController] ============ UPDATE POST ============');
+    console.log('✏️ [PostsController] Post ID:', postId);
+    console.log('✏️ [PostsController] User ID:', req.user?.userId);
+    console.log('✏️ [PostsController] New content:', updateData?.content);
+
+    const updatedPost = await this.postsService.updatePost(
+      postId,
+      req.user.userId,
+      updateData?.content ?? '',
+    );
+
+    console.log('✅ [PostsController] Post updated successfully');
+
+    return {
+      message: 'Post updated successfully',
+      post: updatedPost,
+    };
+  }
+
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   async update(
@@ -102,25 +158,37 @@ export class PostsController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  async remove(@Param('id') id: string, @Request() req) {
-    await this.postsService.remove(id, req.user.userId);
+  async deletePost(@Param('id') postId: string, @Request() req: any) {
+    console.log('\n🗑️ [PostsController] ============ DELETE POST ============');
+    console.log('🗑️ [PostsController] Post ID:', postId);
+    console.log('🗑️ [PostsController] User ID:', req.user?.userId);
+
+    await this.postsService.deletePost(postId, req.user.userId);
+
+    console.log('✅ [PostsController] Post deleted successfully');
+
     return {
-      success: true,
       message: 'Post deleted successfully',
+      postId,
     };
   }
 
   @Patch(':id/like')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  async toggleLike(@Param('id') id: string, @Request() req) {
-    console.log('req.user', req.user);
-    const post = await this.postsService.toggleLike(id, req.user.userId);
-    return {
-      success: true,
-      message: 'Like toggled successfully',
-      data: post,
-    };
+  async toggleLike(@Param('id') postId: string, @Request() req: any) {
+    console.log('\n❤️ [PostsController] ============ TOGGLE LIKE ============');
+    console.log('❤️ [PostsController] Post ID:', postId);
+    console.log('❤️ [PostsController] User ID:', req.user?.userId);
+
+    const result = await this.postsService.toggleLike(postId, req.user.userId);
+
+    console.log('✅ [PostsController] Like toggled:', result.isLiked);
+    console.log('✅ [PostsController] Likes count:', result.likesCount);
+
+    return result;
   }
 
   @HttpPost(':id/comments')

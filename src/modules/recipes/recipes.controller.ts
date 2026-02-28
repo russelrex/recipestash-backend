@@ -198,13 +198,24 @@ export class RecipesController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  async remove(@Param('id') id: string, @Request() req) {
-    await this.recipesService.remove(id, req.user.userId);
-    return {
-      success: true,
-      message: 'Recipe deleted successfully',
-    };
+  async deleteRecipe(@Param('id') recipeId: string, @Request() req) {
+    console.log('\n🗑️ [RecipesController] ============ DELETE RECIPE ============');
+    console.log('🗑️ [RecipesController] Recipe ID:', recipeId);
+    console.log('🗑️ [RecipesController] User ID:', req.user.userId);
+
+    try {
+      await this.recipesService.deleteRecipe(recipeId, req.user.userId);
+      console.log('✅ [RecipesController] Recipe deleted successfully');
+      return {
+        message: 'Recipe deleted successfully',
+        recipeId,
+      };
+    } catch (error: any) {
+      console.error('❌ [RecipesController] Delete failed:', error);
+      throw error;
+    }
   }
 
   @Post('import')
@@ -239,73 +250,7 @@ export class RecipesController {
       return { success: false, message: error.message || 'Import failed' };
     }
   }
-
-  @Post('profile-picture')
-  @HttpCode(HttpStatus.OK)
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadImage(@UploadedFile() file: Express.Multer.File) {
-    console.log(
-      '\n📸 [RecipesController] ============ IMAGE UPLOAD REQUEST ============',
-    );
-    console.log('📸 [RecipesController] Received file upload request');
-    console.log('📸 [RecipesController] File details:', {
-      fieldname: file?.fieldname,
-      originalname: file?.originalname,
-      mimetype: file?.mimetype,
-      size: file?.size,
-    });
-
-    if (!file) {
-      console.error('❌ [RecipesController] No file provided in request');
-      throw new BadRequestException('No file provided');
-    }
-
-    try {
-      // Validate file type
-      const allowedMimeTypes = ImageUploadConfig.allowedFormats;
-      if (!allowedMimeTypes.includes(file.mimetype)) {
-        console.error(
-          '❌ [RecipesController] Invalid file type:',
-          file.mimetype,
-        );
-        throw new BadRequestException(
-          'Invalid file type. Only JPEG, PNG, and WebP images are allowed.',
-        );
-      }
-
-      // Validate file size (5MB max)
-      const maxSize = ImageUploadConfig.maxFileSize;
-      if (file.size > maxSize) {
-        console.error('❌ [RecipesController] File too large:', file.size);
-        throw new BadRequestException(
-          `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`,
-        );
-      }
-
-      // Convert file buffer to base64 for S3Service
-      const base64Data = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
-
-      console.log('📤 [RecipesController] Uploading to S3...');
-      const imageUrl = await this.s3Service.uploadImage(
-        base64Data,
-        ImageUploadConfig.folders.featuredImages,
-        'featured',
-      );
-
-      console.log('✅ [RecipesController] Upload successful');
-      console.log('✅ [RecipesController] Image URL:', imageUrl);
-
-      return {
-        url: imageUrl,
-        filename: file.originalname,
-        size: file.size,
-      };
-    } catch (error: any) {
-      console.error('❌ [RecipesController] Upload failed:', error);
-      throw error;
-    }
-  }
-
+  
   @Post('step-image')
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))

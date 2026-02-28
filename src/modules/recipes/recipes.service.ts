@@ -459,11 +459,32 @@ export class RecipesService {
     return (recipe as any).save();
   }
 
-  async remove(id: string, ownerId: string): Promise<void> {
-    const recipe = await this.findOne(id);
+  /**
+   * Delete a recipe by ID. Ensures the caller is the owner.
+   * Deletes associated S3 images and invalidates cache.
+   */
+  async deleteRecipe(recipeId: string, userId: string): Promise<void> {
+    console.log('💾 [RecipesService] Deleting recipe:', recipeId);
+    console.log('💾 [RecipesService] User:', userId);
 
-    if (recipe.ownerId !== ownerId) {
-      throw new ForbiddenException('You can only delete your own recipes');
+    const recipe = await this.recipeModel.findById(recipeId).exec();
+
+    if (!recipe) {
+      console.error('❌ [RecipesService] Recipe not found');
+      throw new NotFoundException('Recipe not found');
+    }
+
+    const ownerId =
+      typeof recipe.ownerId === 'string'
+        ? recipe.ownerId
+        : (recipe.ownerId as any)?.toString?.() ?? String(recipe.ownerId);
+    if (ownerId !== userId) {
+      console.error(
+        '❌ [RecipesService] User not authorized to delete this recipe',
+      );
+      throw new ForbiddenException(
+        'You are not authorized to delete this recipe',
+      );
     }
 
     // Delete images from S3
@@ -474,15 +495,20 @@ export class RecipesService {
     if (recipe.images && recipe.images.length > 0) {
       imagesToDelete.push(...recipe.images);
     }
-
     if (imagesToDelete.length > 0) {
       await this.s3Service.deleteMultipleFiles(imagesToDelete);
     }
 
-    await this.recipeModel.deleteOne({ _id: id }).exec();
+    await this.recipeModel.deleteOne({ _id: recipeId }).exec();
 
     // Invalidate cache
-    await this.cacheInvalidation.invalidateRecipe(id, ownerId);
+    await this.cacheInvalidation.invalidateRecipe(recipeId, ownerId);
+
+    console.log('✅ [RecipesService] Recipe deleted successfully');
+  }
+
+  async remove(id: string, ownerId: string): Promise<void> {
+    await this.deleteRecipe(id, ownerId);
   }
 
   async getStats(ownerId: string) {
