@@ -1,37 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
-// Subscription subdocument schema
-@Schema({ _id: false })
-export class Subscription {
-  @Prop({ default: false })
-  isPremium: boolean;
-
-  @Prop({ type: String, enum: ['free', 'premium', 'pro'], default: 'free' })
-  tier: string;
-
-  @Prop()
-  startDate?: Date;
-
-  @Prop()
-  expiryDate?: Date;
-
-  @Prop({
-    type: String,
-    enum: ['active', 'expired', 'cancelled'],
-    default: 'active',
-  })
-  status?: string;
-
-  @Prop()
-  paymentMethod?: string; // 'paymongo', 'gcash', etc.
-
-  @Prop()
-  subscriptionId?: string; // External subscription ID
-}
-
-export const SubscriptionSchema = SchemaFactory.createForClass(Subscription);
-
 @Schema({ timestamps: true })
 export class User {
   @Prop({ required: true })
@@ -67,9 +36,21 @@ export class User {
   @Prop({ default: true })
   privacyProfilePublic?: boolean;
 
-  // NESTED SUBSCRIPTION OBJECT
-  @Prop({ type: SubscriptionSchema, default: () => ({}) })
-  subscription: Subscription;
+  @Prop({ type: String, enum: ['free', 'premium'], default: 'free' })
+  plan: 'free' | 'premium';
+
+  @Prop()
+  subscriptionEndsAt?: Date;
+
+  @Prop({
+    type: String,
+    enum: ['active', 'expiring_soon', 'expired', 'inactive'],
+    default: 'inactive',
+  })
+  subscriptionStatus: 'active' | 'expiring_soon' | 'expired' | 'inactive';
+
+  @Prop()
+  customerId?: string;
 }
 
 export type UserDocument = User & Document;
@@ -77,5 +58,5 @@ export const UserSchema = SchemaFactory.createForClass(User);
 
 // Indexes
 UserSchema.index({ email: 1 });
-UserSchema.index({ 'subscription.isPremium': 1 });
-UserSchema.index({ 'subscription.tier': 1 });
+UserSchema.index({ plan: 1 });
+UserSchema.index({ subscriptionStatus: 1 });

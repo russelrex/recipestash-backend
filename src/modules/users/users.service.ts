@@ -47,15 +47,10 @@ export class UsersService {
       email: email.toLowerCase(),
       password: hashedPassword,
       ...(subscription && {
-        subscription: {
-          isPremium: subscription.isPremium ?? false,
-          tier: subscription.tier ?? 'free',
-          startDate: subscription.startDate,
-          expiryDate: subscription.expiryDate,
-          status: subscription.status ?? 'active',
-          paymentMethod: subscription.paymentMethod,
-          subscriptionId: subscription.subscriptionId,
-        },
+        plan:
+          subscription.isPremium || subscription.tier === 'premium'
+            ? 'premium'
+            : 'free',
       }),
     });
 

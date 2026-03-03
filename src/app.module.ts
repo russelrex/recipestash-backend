@@ -10,6 +10,7 @@ import { PostsModule } from './modules/posts/posts.module';
 import { FollowsModule } from './modules/follows/follows.module';
 import { AppConfigModule } from './modules/config/config.module';
 import { S3Module } from './common/services/s3.module';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { CacheModule } from './common/cache/cache.module';
 import { AppController } from './app.controller';
 
@@ -106,6 +107,7 @@ import { AppController } from './app.controller';
     UsersModule,
     RecipesModule,
     PostsModule,
+    SubscriptionsModule,
     FollowsModule,
     AppConfigModule,
   ],

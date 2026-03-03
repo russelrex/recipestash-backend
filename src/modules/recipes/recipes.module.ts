@@ -5,12 +5,14 @@ import { RecipesService } from './recipes.service';
 import { Recipe, RecipeSchema } from './entities/recipe.entity';
 import { S3Module } from '../../common/services/s3.module';
 import { UsersModule } from '../users/users.module';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Recipe.name, schema: RecipeSchema }]),
     S3Module,
     UsersModule,
+    SubscriptionsModule,
   ],
   controllers: [RecipesController],
   providers: [RecipesService],

@@ -457,22 +457,15 @@ export class PostsService {
         try {
           const user = await this.usersService.findOne(uid);
           const doc = (user as any).toObject ? (user as any).toObject() : user;
-          // Handle nested subscription or fallback to old schema
-          const subscription = doc.subscription
-            ? {
-                isPremium: doc.subscription.isPremium ?? false,
-                tier: doc.subscription.tier ?? 'free',
-                status: doc.subscription.status ?? 'active',
-                startDate: doc.subscription.startDate,
-                expiryDate: doc.subscription.expiryDate,
-                paymentMethod: doc.subscription.paymentMethod,
-                subscriptionId: doc.subscription.subscriptionId,
-              }
-            : {
-                isPremium: doc.isPremium ?? false,
-                tier: doc.subscriptionTier ?? 'free',
-                status: 'active',
-              };
+          const subscription = {
+            isPremium: doc.plan === 'premium' || doc.isPremium === true,
+            tier: doc.plan === 'premium' ? 'premium' : 'free',
+            status: doc.subscriptionStatus ?? 'inactive',
+            startDate: doc.subscriptionStartsAt,
+            expiryDate: doc.subscriptionEndsAt,
+            paymentMethod: undefined,
+            subscriptionId: doc.customerId,
+          };
           userMap.set(uid, {
             _id: uid,
             name: doc.name,

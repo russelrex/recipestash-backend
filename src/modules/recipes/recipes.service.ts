@@ -237,10 +237,15 @@ export class RecipesService {
               name: user.name,
               email: user.email,
               avatarUrl: user.avatarUrl || null,
-              subscription: userDoc.subscription || {
-                isPremium: userDoc.isPremium ?? false,
-                tier: userDoc.subscriptionTier ?? 'free',
-                status: 'active',
+              subscription: {
+                isPremium:
+                  userDoc.plan === 'premium' || userDoc.isPremium === true,
+                tier: userDoc.plan === 'premium' ? 'premium' : 'free',
+                status: userDoc.subscriptionStatus ?? 'inactive',
+                startDate: userDoc.subscriptionStartsAt,
+                expiryDate: userDoc.subscriptionEndsAt,
+                paymentMethod: undefined,
+                subscriptionId: userDoc.customerId,
               },
             };
           } catch (error) {

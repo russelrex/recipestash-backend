@@ -23,17 +23,31 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { S3Service } from '../../common/services/s3.service';
 import { ImageUploadConfig } from '../../common/config/image-upload.config';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 @Controller('recipes')
 export class RecipesController {
   constructor(
     private readonly recipesService: RecipesService,
     private readonly s3Service: S3Service,
+    private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
   async create(@Body() createRecipeDto: CreateRecipeDto, @Request() req) {
+    const canCreate = await this.subscriptionsService.canCreateRecipe(
+      req.user.userId,
+    );
+
+    if (!canCreate.allowed) {
+      throw new BadRequestException({
+        message: canCreate.message,
+        code: 'RECIPE_LIMIT_REACHED',
+        upgradeRequired: true,
+      });
+    }
+
     createRecipeDto.ownerId = req.user.userId;
     createRecipeDto.ownerName = req.user.name;
     createRecipeDto.userId = req.user.userId;
