@@ -22,10 +22,20 @@ export class AuthController {
 
   @Post('register')
   async register(@Body() registerDto: RegisterDto) {
+    this.logger.log(
+      `[Register] Attempt for email: ${registerDto?.email ?? 'unknown'}`,
+    );
     try {
       const result = await this.authService.register(registerDto);
+      this.logger.log(
+        `[Register] Success for email: ${registerDto?.email ?? 'unknown'}`,
+      );
       return result;
     } catch (error: any) {
+      this.logger.error(
+        `[Register] Failed for email: ${registerDto?.email ?? 'unknown'} - ${error?.message ?? String(error)}`,
+        error?.stack ?? '',
+      );
       return {
         success: false,
         message: error.message || 'Registration failed',
@@ -35,16 +45,19 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
+    this.logger.log(
+      `[Login] Attempt for email: ${loginDto?.email ?? 'unknown'}`,
+    );
     try {
-      this.logger.log(`Login attempt for: ${loginDto.email}`);
       const result = await this.authService.login(loginDto);
-
-      this.logger.log('Login successful');
+      this.logger.log(
+        `[Login] Success for email: ${loginDto?.email ?? 'unknown'}`,
+      );
       return result;
     } catch (error: any) {
       this.logger.error(
-        'Login error',
-        (error as Error)?.stack || String(error),
+        `[Login] Failed for email: ${loginDto?.email ?? 'unknown'} - ${error?.message ?? String(error)}`,
+        error?.stack ?? '',
       );
       return {
         success: false,
