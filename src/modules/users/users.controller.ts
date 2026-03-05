@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Param,
   Post,
   Put,
@@ -24,6 +25,8 @@ import { S3Service } from '../../common/services/s3.service';
 
 @Controller('users')
 export class UsersController {
+  private readonly logger = new Logger(UsersController.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly s3Service: S3Service,
@@ -51,11 +54,12 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   async updateProfile(@Request() req, @Body() dto: UpdateProfileDto) {
     try {
-      console.log(
-        '✏️ [UsersController] Updating profile for user:',
-        req.user.userId,
+      this.logger.log(
+        `✏️ Updating profile for user: ${req.user.userId}`,
       );
-      console.log('✏️ [UsersController] Update data:', dto);
+      this.logger.debug(
+        `✏️ Update data: ${JSON.stringify(dto, null, 2)}`,
+      );
       const user = await this.usersService.updateProfile(req.user.userId, dto);
       return {
         success: true,
@@ -126,20 +130,22 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
-    console.log(
-      '\n📸 [UsersController] ============ IMAGE UPLOAD REQUEST ============',
+    this.logger.log('📸 Image upload request received');
+    this.logger.debug(
+      `📸 File details: ${JSON.stringify(
+        {
+          fieldname: file?.fieldname,
+          originalname: file?.originalname,
+          mimetype: file?.mimetype,
+          size: file?.size,
+        },
+        null,
+        2,
+      )}`,
     );
-    console.log('📸 [UsersController] Received file upload request');
-    console.log('📸 [UsersController] File details:', {
-      file: file,
-      fieldname: file?.fieldname,
-      originalname: file?.originalname,
-      mimetype: file?.mimetype,
-      size: file?.size,
-    });
 
     if (!file) {
-      console.error('❌ [UsersController] No file provided in request');
+      this.logger.warn('❌ No file provided in image upload request');
       throw new BadRequestException('No file provided');
     }
 
@@ -147,9 +153,8 @@ export class UsersController {
       // Validate file type
       const allowedMimeTypes = ImageUploadConfig.allowedFormats;
       if (!allowedMimeTypes.includes(file.mimetype)) {
-        console.error(
-          '❌ [RecipesController] Invalid file type:',
-          file.mimetype,
+        this.logger.warn(
+          `❌ Invalid profile image file type: ${file.mimetype}`,
         );
         throw new BadRequestException(
           'Invalid file type. Only JPEG, PNG, and WebP images are allowed.',
@@ -159,24 +164,28 @@ export class UsersController {
       // Validate file size (5MB max)
       const maxSize = ImageUploadConfig.maxFileSize;
       if (file.size > maxSize) {
-        console.error('❌ [RecipesController] File too large:', file.size);
+        this.logger.warn(
+          `❌ Profile image file too large: ${file.size} bytes`,
+        );
         throw new BadRequestException(
           `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`,
         );
       }
 
       // Convert file buffer to base64 for S3Service
-      const base64Data = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      const base64Data = `data:${file.mimetype};base64,${file.buffer.toString(
+        'base64',
+      )}`;
 
-      console.log('📤 [RecipesController] Uploading to S3...');
+      this.logger.log('📤 Uploading profile image to S3...');
       const imageUrl = await this.s3Service.uploadImage(
         base64Data,
         ImageUploadConfig.folders.featuredImages,
         'featured',
       );
 
-      console.log('✅ [RecipesController] Upload successful');
-      console.log('✅ [RecipesController] Image URL:', imageUrl);
+      this.logger.log('✅ Profile image upload successful');
+      this.logger.debug(`✅ Profile image URL: ${imageUrl}`);
 
       return {
         url: imageUrl,
@@ -184,7 +193,10 @@ export class UsersController {
         size: file.size,
       };
     } catch (error: any) {
-      console.error('❌ [RecipesController] Upload failed:', error);
+      this.logger.error(
+        '❌ Profile image upload failed',
+        error?.stack || String(error),
+      );
       throw error;
     }
   }

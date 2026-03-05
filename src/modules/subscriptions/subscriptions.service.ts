@@ -13,7 +13,7 @@ export class SubscriptionsService {
   ) {}
 
   async getSubscription(userId: string) {
-    console.log('📊 [SubscriptionsService] Getting subscription for:', userId);
+    this.logger.log(`📊 Getting subscription for user: ${userId}`);
 
     const user = await this.userModel.findById(userId).lean();
     if (!user) {
@@ -32,7 +32,9 @@ export class SubscriptionsService {
       subscriptionStatus: (user as any).subscriptionStatus || 'inactive',
     };
 
-    console.log('✅ [SubscriptionsService] Subscription:', subscription);
+    this.logger.debug(
+      `✅ Subscription: ${JSON.stringify(subscription, null, 2)}`,
+    );
 
     return {
       subscription,
@@ -98,7 +100,9 @@ export class SubscriptionsService {
   async canCreateRecipe(
     userId: string,
   ): Promise<{ allowed: boolean; message?: string }> {
-    console.log('🔍 [SubscriptionsService] Checking recipe creation limit');
+    this.logger.log(
+      `🔍 Checking recipe creation limit for user: ${userId}`,
+    );
 
     const user = await this.userModel.findById(userId);
     if (!user) {
@@ -109,15 +113,15 @@ export class SubscriptionsService {
       (user as any).plan === 'premium' &&
       (user as any).subscriptionStatus === 'active'
     ) {
-      console.log('✅ Premium user - unlimited recipes');
+      this.logger.log('✅ Premium user - unlimited recipes');
       return { allowed: true };
     }
 
     const recipeCount = await this.getRecipeCount(userId);
-    console.log('📊 Recipe count:', recipeCount);
+    this.logger.log(`📊 Recipe count: ${recipeCount}`);
 
     if (recipeCount >= 10) {
-      console.log('❌ Recipe limit reached');
+      this.logger.log('❌ Recipe limit reached');
       return {
         allowed: false,
         message:

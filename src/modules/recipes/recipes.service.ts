@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   Inject,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -27,6 +28,8 @@ interface PublicRecipesQuery {
 
 @Injectable()
 export class RecipesService {
+  private readonly logger = new Logger(RecipesService.name);
+
   constructor(
     @InjectModel(Recipe.name)
     private readonly recipeModel: Model<RecipeDocument>,
@@ -72,21 +75,18 @@ export class RecipesService {
       createRecipeDto.featuredImage.startsWith('data:image')
     ) {
       try {
-        console.log('[RecipesService] Starting featured image upload to S3...');
+        this.logger.log('Starting featured image upload to S3');
         featuredImageUrl = await this.s3Service.uploadImage(
           createRecipeDto.featuredImage,
           ImageUploadConfig.folders.featuredImages,
           'featured',
         );
 
-        console.log(
-          '[RecipesService] Featured image uploaded successfully:',
-          featuredImageUrl,
-        );
+        this.logger.log('Featured image uploaded successfully');
       } catch (error) {
-        console.error(
-          '[RecipesService] Failed to upload featured image:',
-          error,
+        this.logger.error(
+          'Failed to upload featured image',
+          (error as Error)?.stack || String(error),
         );
         // Re-throw the error to prevent recipe creation with failed upload
         throw error;
@@ -107,8 +107,8 @@ export class RecipesService {
 
       if (base64Images.length > 0) {
         try {
-          console.log(
-            `[RecipesService] Starting upload of ${base64Images.length} additional images to S3...`,
+          this.logger.log(
+            `Starting upload of ${base64Images.length} additional images to S3`,
           );
           const uploadedUrls = await this.s3Service.uploadMultipleImages(
             base64Images,
@@ -116,14 +116,11 @@ export class RecipesService {
           );
           imageUrls = [...regularUrls, ...uploadedUrls];
 
-          console.log(
-            '[RecipesService] Additional images uploaded successfully:',
-            uploadedUrls,
-          );
+          this.logger.log('Additional images uploaded successfully');
         } catch (error) {
-          console.error(
-            '[RecipesService] Failed to upload additional images:',
-            error,
+          this.logger.error(
+            'Failed to upload additional images',
+            (error as Error)?.stack || String(error),
           );
           // Re-throw the error to prevent recipe creation with failed upload
           throw error;
@@ -147,7 +144,7 @@ export class RecipesService {
       featured: createRecipeDto.featured ?? false,
     });
 
-    console.log('[RecipesService] Saving recipe to database...');
+    this.logger.log('Saving recipe to database');
     const saved = await createdRecipe.save();
 
     // Invalidate cache
@@ -185,10 +182,8 @@ export class RecipesService {
   }
 
   async getAllPublicRecipes(query: PublicRecipesQuery) {
-    console.log(
-      '🔍 [RecipesService] Fetching public recipes with query:',
-      query,
-    );
+    this.logger.log('🔍 Fetching public recipes with query');
+    this.logger.debug(JSON.stringify(query));
 
     const { page, limit, category, search } = query;
     const skip = (page - 1) * limit;
@@ -221,7 +216,7 @@ export class RecipesService {
         .lean()
         .exec();
 
-      console.log('✅ [RecipesService] Found', recipes.length, 'recipes');
+      this.logger.log(`✅ Found ${recipes.length} public recipes`);
 
       // Get unique owner IDs to fetch user details
       const ownerIds = [...new Set(recipes.map((r) => r.ownerId))];
@@ -302,9 +297,9 @@ export class RecipesService {
         };
       });
     } catch (error) {
-      console.error(
-        '❌ [RecipesService] Error fetching public recipes:',
-        error,
+      this.logger.error(
+        '❌ Error fetching public recipes',
+        (error as Error)?.stack || String(error),
       );
       throw error;
     }
@@ -469,13 +464,14 @@ export class RecipesService {
    * Deletes associated S3 images and invalidates cache.
    */
   async deleteRecipe(recipeId: string, userId: string): Promise<void> {
-    console.log('💾 [RecipesService] Deleting recipe:', recipeId);
-    console.log('💾 [RecipesService] User:', userId);
+    this.logger.log(
+      `💾 Deleting recipe. recipeId=${recipeId}, userId=${userId}`,
+    );
 
     const recipe = await this.recipeModel.findById(recipeId).exec();
 
     if (!recipe) {
-      console.error('❌ [RecipesService] Recipe not found');
+      this.logger.warn('❌ Recipe not found when attempting to delete');
       throw new NotFoundException('Recipe not found');
     }
 
@@ -484,8 +480,8 @@ export class RecipesService {
         ? recipe.ownerId
         : (recipe.ownerId as any)?.toString?.() ?? String(recipe.ownerId);
     if (ownerId !== userId) {
-      console.error(
-        '❌ [RecipesService] User not authorized to delete this recipe',
+      this.logger.warn(
+        '❌ User not authorized to delete this recipe',
       );
       throw new ForbiddenException(
         'You are not authorized to delete this recipe',
@@ -509,7 +505,7 @@ export class RecipesService {
     // Invalidate cache
     await this.cacheInvalidation.invalidateRecipe(recipeId, ownerId);
 
-    console.log('✅ [RecipesService] Recipe deleted successfully');
+    this.logger.log('✅ Recipe deleted successfully');
   }
 
   async remove(id: string, ownerId: string): Promise<void> {

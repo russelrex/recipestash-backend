@@ -14,6 +14,7 @@ import {
   BadRequestException,
   HttpCode,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RecipesService } from './recipes.service';
@@ -30,6 +31,8 @@ import { ScrapeRecipeDto } from './dto/scrape-recipe.dto';
 
 @Controller('recipes')
 export class RecipesController {
+  private readonly logger = new Logger(RecipesController.name);
+
   constructor(
     private readonly recipesService: RecipesService,
     private readonly s3Service: S3Service,
@@ -88,10 +91,11 @@ export class RecipesController {
       sourceUrl: string;
     };
   }> {
-    console.log('🔍 [RecipesController] Scrape request', {
-      userId: req.user?.userId,
-      url: scrapeDto.url,
-    });
+    this.logger.log(
+      `🔍 Scrape request from user ${
+        req.user?.userId || 'anonymous'
+      } for URL: ${scrapeDto.url}`,
+    );
 
     const scrapedData = await this.scraperService.scrapeRecipeFromUrl(
       scrapeDto.url,
@@ -148,9 +152,13 @@ export class RecipesController {
     @Query('limit') limit: string = '20',
     @Query('category') category?: string,
     @Query('search') search?: string,
-  ) {
-    console.log('📚 [Recipes] Fetching all public recipes');
-    console.log('📚 [Recipes] Query params:', {
+  ): Promise<{
+    success: boolean;
+    data: any[];
+    pagination: { page: number; limit: number; total: number };
+  }> {
+    this.logger.log('📚 Fetching all public recipes');
+    this.logger.debug('📚 Query params', {
       page,
       limit,
       category,
@@ -164,14 +172,17 @@ export class RecipesController {
       search,
     });
 
-    console.log('✅ [Recipes] Found', recipes.length, 'public recipes');
+    this.logger.log(`✅ Found ${recipes.length} public recipes`);
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
 
     return {
       success: true,
       data: recipes,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: pageNum,
+        limit: limitNum,
         total: recipes.length,
       },
     };
@@ -296,19 +307,19 @@ export class RecipesController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   async deleteRecipe(@Param('id') recipeId: string, @Request() req) {
-    console.log('\n🗑️ [RecipesController] ============ DELETE RECIPE ============');
-    console.log('🗑️ [RecipesController] Recipe ID:', recipeId);
-    console.log('🗑️ [RecipesController] User ID:', req.user.userId);
+    this.logger.log(
+      `🗑️ Delete recipe request. recipeId=${recipeId}, userId=${req.user.userId}`,
+    );
 
     try {
       await this.recipesService.deleteRecipe(recipeId, req.user.userId);
-      console.log('✅ [RecipesController] Recipe deleted successfully');
+      this.logger.log('✅ Recipe deleted successfully');
       return {
         message: 'Recipe deleted successfully',
         recipeId,
       };
     } catch (error: any) {
-      console.error('❌ [RecipesController] Delete failed:', error);
+      this.logger.error('❌ Delete failed', error?.stack || String(error));
       throw error;
     }
   }
@@ -350,11 +361,8 @@ export class RecipesController {
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
   async uploadStepImage(@UploadedFile() file: Express.Multer.File) {
-    console.log(
-      '\n📸 [RecipesController] ============ STEP IMAGE UPLOAD REQUEST ============',
-    );
-    console.log('📸 [RecipesController] Received step image upload request');
-    console.log('📸 [RecipesController] File details:', {
+    this.logger.log('📸 Step image upload request received');
+    this.logger.debug('📸 Step image file details', {
       fieldname: file?.fieldname,
       originalname: file?.originalname,
       mimetype: file?.mimetype,
@@ -362,16 +370,15 @@ export class RecipesController {
     });
 
     if (!file) {
-      console.error('❌ [RecipesController] No file provided in request');
+      this.logger.warn('❌ No file provided in step image upload request');
       throw new BadRequestException('No file provided');
     }
 
     try {
       const allowedMimeTypes = ImageUploadConfig.allowedFormats;
       if (!allowedMimeTypes.includes(file.mimetype)) {
-        console.error(
-          '❌ [RecipesController] Invalid step image file type:',
-          file.mimetype,
+        this.logger.warn(
+          `❌ Invalid step image file type: ${file.mimetype}`,
         );
         throw new BadRequestException(
           'Invalid file type. Only JPEG, PNG, and WebP images are allowed.',
@@ -380,9 +387,8 @@ export class RecipesController {
 
       const maxSize = ImageUploadConfig.maxFileSize;
       if (file.size > maxSize) {
-        console.error(
-          '❌ [RecipesController] Step image file too large:',
-          file.size,
+        this.logger.warn(
+          `❌ Step image file too large: ${file.size} bytes`,
         );
         throw new BadRequestException(
           `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`,
@@ -393,15 +399,15 @@ export class RecipesController {
         'base64',
       )}`;
 
-      console.log('📤 [RecipesController] Uploading step image to S3...');
+      this.logger.log('📤 Uploading step image to S3...');
       const imageUrl = await this.s3Service.uploadImage(
         base64Data,
         ImageUploadConfig.folders.additionalImages,
         'additional',
       );
 
-      console.log('✅ [RecipesController] Step image upload successful');
-      console.log('✅ [RecipesController] Step image URL:', imageUrl);
+      this.logger.log('✅ Step image upload successful');
+      this.logger.debug(`✅ Step image URL: ${imageUrl}`);
 
       return {
         url: imageUrl,
@@ -409,7 +415,10 @@ export class RecipesController {
         size: file.size,
       };
     } catch (error: any) {
-      console.error('❌ [RecipesController] Step image upload failed:', error);
+      this.logger.error(
+        '❌ Step image upload failed',
+        error?.stack || String(error),
+      );
       throw error;
     }
   }

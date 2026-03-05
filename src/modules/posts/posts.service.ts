@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -19,6 +20,8 @@ import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class PostsService {
+  private readonly logger = new Logger(PostsService.name);
+
   constructor(
     @InjectModel(Post.name)
     private readonly postModel: Model<PostDocument>,
@@ -72,9 +75,9 @@ export class PostsService {
     page: number;
     totalCount: number;
   }> {
-    console.log('💾 [PostsService] Fetching posts');
-    console.log('💾 [PostsService] Page:', page, 'Limit:', limit);
-    console.log('💾 [PostsService] User ID:', userId);
+    this.logger.log(
+      `💾 Fetching posts for user ${userId} (page=${page}, limit=${limit})`,
+    );
 
     const skip = (page - 1) * limit;
 
@@ -89,8 +92,9 @@ export class PostsService {
     const hasMore = posts.length > limit;
     const postsToReturn = hasMore ? posts.slice(0, limit) : posts;
 
-    console.log('💾 [PostsService] Found', postsToReturn.length, 'posts');
-    console.log('💾 [PostsService] Has more:', hasMore);
+    this.logger.log(
+      `💾 Found ${postsToReturn.length} posts (hasMore=${hasMore})`,
+    );
 
     const enriched = await this.enrichPostsWithAuthor(
       postsToReturn as (Post & { _id: any; userId: string; userName: string })[],
@@ -190,13 +194,14 @@ export class PostsService {
     userId: string,
     content: string,
   ): Promise<any> {
-    console.log('💾 [PostsService] Updating post:', postId);
-    console.log('💾 [PostsService] User:', userId);
+    this.logger.log(
+      `💾 Updating post ${postId} for user ${userId}`,
+    );
 
     const post = await this.postModel.findById(postId).exec();
 
     if (!post) {
-      console.error('❌ [PostsService] Post not found');
+      this.logger.warn('❌ Post not found when attempting update');
       throw new NotFoundException('Post not found');
     }
 
@@ -205,8 +210,8 @@ export class PostsService {
         ? (post as any).userId
         : String((post as any).userId);
     if (postUserId !== userId) {
-      console.error(
-        '❌ [PostsService] User not authorized to edit this post',
+      this.logger.warn(
+        '❌ User not authorized to edit this post',
       );
       throw new ForbiddenException(
         'You are not authorized to edit this post',
@@ -216,7 +221,7 @@ export class PostsService {
     (post as any).content = content;
     await (post as any).save();
 
-    console.log('✅ [PostsService] Post updated successfully');
+    this.logger.log('✅ Post updated successfully');
 
     const enriched = await this.findOneWithAuthor(postId);
     const raw = await this.postModel.findById(postId).lean().exec();
@@ -238,13 +243,14 @@ export class PostsService {
    * Delete a post. Only the owner can delete. Also deletes associated comments.
    */
   async deletePost(postId: string, userId: string): Promise<void> {
-    console.log('💾 [PostsService] Deleting post:', postId);
-    console.log('💾 [PostsService] User:', userId);
+    this.logger.log(
+      `💾 Deleting post ${postId} for user ${userId}`,
+    );
 
     const post = await this.postModel.findById(postId).exec();
 
     if (!post) {
-      console.error('❌ [PostsService] Post not found');
+      this.logger.warn('❌ Post not found when attempting delete');
       throw new NotFoundException('Post not found');
     }
 
@@ -253,8 +259,8 @@ export class PostsService {
         ? (post as any).userId
         : String((post as any).userId);
     if (postUserId !== userId) {
-      console.error(
-        '❌ [PostsService] User not authorized to delete this post',
+      this.logger.warn(
+        '❌ User not authorized to delete this post',
       );
       throw new ForbiddenException(
         'You are not authorized to delete this post',
@@ -264,7 +270,7 @@ export class PostsService {
     await this.commentModel.deleteMany({ postId }).exec();
     await this.postModel.deleteOne({ _id: postId }).exec();
 
-    console.log('✅ [PostsService] Post deleted successfully');
+    this.logger.log('✅ Post deleted successfully');
   }
 
   async update(
@@ -306,9 +312,9 @@ export class PostsService {
     postId: string,
     userId: string,
   ): Promise<{ postId: string; likesCount: number; isLiked: boolean }> {
-    console.log('💾 [PostsService] Toggling like');
-    console.log('💾 [PostsService] Post ID:', postId);
-    console.log('💾 [PostsService] User ID:', userId);
+    this.logger.log(
+      `💾 Toggling like for post ${postId} by user ${userId}`,
+    );
 
     const post = await this.postModel.findById(postId).exec();
 
@@ -329,20 +335,21 @@ export class PostsService {
       (post as any).likes = likes;
       (post as any).likesCount = Math.max(0, (post as any).likesCount - 1);
       isLiked = false;
-      console.log('💾 [PostsService] Like removed');
+      this.logger.log('💾 Like removed');
     } else {
       likes.push(userIdStr);
       (post as any).likes = likes;
       (post as any).likesCount = ((post as any).likesCount || 0) + 1;
       isLiked = true;
-      console.log('💾 [PostsService] Like added');
+      this.logger.log('💾 Like added');
     }
 
     await (post as any).save();
 
-    console.log('✅ [PostsService] Post saved');
-    console.log('✅ [PostsService] New likes count:', (post as any).likesCount);
-    console.log('✅ [PostsService] Is liked:', isLiked);
+    this.logger.log('✅ Post like state saved');
+    this.logger.debug(
+      `✅ New likes count: ${(post as any).likesCount}, isLiked=${isLiked}`,
+    );
 
     return {
       postId: (post as any)._id.toString(),

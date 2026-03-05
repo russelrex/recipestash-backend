@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import {
   S3Client,
   PutObjectCommand,
@@ -17,6 +17,7 @@ export class S3Service {
   private s3Client: S3Client;
   private bucketName: string;
   private region: string;
+  private readonly logger = new Logger(S3Service.name);
 
   constructor(
     private configService: ConfigService,
@@ -44,13 +45,13 @@ export class S3Service {
     try {
       // Check if S3 is configured
       if (!this.bucketName) {
-        console.error('[S3Service] AWS_S3_BUCKET_NAME is not configured');
+        this.logger.error('AWS_S3_BUCKET_NAME is not configured');
         throw new BadRequestException(
           'S3 bucket is not configured. Please set AWS_S3_BUCKET_NAME in environment variables.',
         );
       }
 
-      console.log('[S3Service] Validating image...');
+      this.logger.log('Validating image before upload');
       // Validate image
       this.imageValidationService.validateBase64Image(imageData, imageType);
 
@@ -67,8 +68,8 @@ export class S3Service {
       // Generate unique filename
       const fileName = `${folder}/${uuidv4()}.${fileExtension}`;
 
-      console.log(
-        `[S3Service] Uploading to S3: ${this.bucketName}/${fileName} (${buffer.length} bytes)`,
+      this.logger.log(
+        `Uploading to S3: ${this.bucketName}/${fileName} (${buffer.length} bytes)`,
       );
 
       // Upload to S3
@@ -90,19 +91,28 @@ export class S3Service {
 
       const imageUrl = `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${fileName}`;
 
-      console.log('[S3Service] Image uploaded successfully:', imageUrl);
+      this.logger.log('Image uploaded successfully');
       return imageUrl;
     } catch (error) {
-      console.error('[S3Service] Error uploading to S3:', error);
+      this.logger.error(
+        'Error uploading to S3',
+        (error as Error)?.stack || String(error),
+      );
       if (error instanceof BadRequestException) {
         throw error;
       }
 
-      console.error('[S3Service] Upload error details:', {
-        message: error?.message,
-        name: error?.name,
-        stack: error?.stack,
-      });
+      this.logger.error(
+        'Upload error details',
+        JSON.stringify(
+          {
+            message: (error as any)?.message,
+            name: (error as any)?.name,
+          },
+          null,
+          2,
+        ),
+      );
       throw new BadRequestException(ImageUploadMessages.uploadFailed);
     }
   }
@@ -136,7 +146,10 @@ export class S3Service {
 
       await this.s3Client.send(command);
     } catch (error) {
-      console.error('Error deleting file from S3:', error);
+      this.logger.error(
+        'Error deleting file from S3',
+        (error as Error)?.stack || String(error),
+      );
     }
   }
 

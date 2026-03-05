@@ -5,6 +5,7 @@ import {
   CallHandler,
   Inject,
   SetMetadata,
+  Logger,
 } from '@nestjs/common';
 import { Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
@@ -61,7 +62,11 @@ export class HttpCacheInterceptor implements NestInterceptor {
             await this.cacheManager.set(cacheKey, response, ttl);
           } catch (error) {
             // Fail silently - cache is optional
-            console.error('Cache set failed:', error);
+            const logger = new Logger(HttpCacheInterceptor.name);
+            logger.warn(
+              `Cache set failed for key "${cacheKey}"`,
+              (error as Error)?.stack || String(error),
+            );
           }
         }
       }),

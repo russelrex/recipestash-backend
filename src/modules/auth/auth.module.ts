@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
@@ -19,9 +19,11 @@ import { JwtStrategy } from './strategies/jwt.strategy';
           'your-secret-key',
         );
 
-        console.log(
-          '[AuthModule] JWT secret preview',
-          secret ? secret.slice(0, 4) + '...' : null,
+        const logger = new Logger('AuthModule');
+        logger.log(
+          `[AuthModule] JWT secret preview: ${
+            secret ? secret.slice(0, 4) + '...' : null
+          }`,
         );
         return {
           secret,

@@ -1,4 +1,4 @@
-import { Module, Global } from '@nestjs/common';
+import { Module, Global, Logger } from '@nestjs/common';
 import { CacheModule as NestCacheModule } from '@nestjs/cache-manager';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheInvalidationService } from '../services/cache-invalidation.service';
@@ -22,11 +22,12 @@ import { SafeCacheService } from '../services/safe-cache.service';
 
         // If no Redis, use in-memory cache
         if (!redisUrl) {
-          console.log('⚠️  Redis not configured - using in-memory cache');
-          console.log('💡 To enable Redis caching:');
-          console.log('   1. Add Redis database in Railway');
-          console.log('   2. Railway will auto-create REDIS_URL variable');
-          console.log('   3. Restart this service');
+          const logger = new Logger('CacheModule');
+          logger.warn('⚠️  Redis not configured - using in-memory cache');
+          logger.log('💡 To enable Redis caching:');
+          logger.log('   1. Add Redis database in Railway');
+          logger.log('   2. Railway will auto-create REDIS_URL variable');
+          logger.log('   3. Restart this service');
 
           return {
             ttl: 300, // 5 minutes
@@ -36,7 +37,8 @@ import { SafeCacheService } from '../services/safe-cache.service';
 
         // Try to connect to Redis
         try {
-          console.log('🔌 Attempting to connect to Redis...');
+          const logger = new Logger('CacheModule');
+          logger.log('🔌 Attempting to connect to Redis...');
 
           // Dynamic import to avoid crashes if redis not installed
           const { redisStore } = await import('cache-manager-redis-yet');
@@ -50,7 +52,8 @@ import { SafeCacheService } from '../services/safe-cache.service';
               reconnectStrategy: (retries: number) => {
                 // Stop trying after 3 attempts
                 if (retries > 3) {
-                  console.warn(
+                  const logger = new Logger('CacheModule');
+                  logger.warn(
                     '⚠️  Redis connection failed after 3 retries, using in-memory cache',
                   );
                   return false; // Stop retrying
@@ -61,15 +64,18 @@ import { SafeCacheService } from '../services/safe-cache.service';
             },
           });
 
-          console.log('✅ Redis connected successfully');
+          logger.log('✅ Redis connected successfully');
 
           return {
             store,
             ttl: 300,
           };
         } catch (error: any) {
-          console.warn('⚠️  Redis connection failed:', error.message);
-          console.warn('⚠️  Falling back to in-memory cache');
+          const logger = new Logger('CacheModule');
+          logger.warn(
+            `⚠️  Redis connection failed: ${error.message}`,
+          );
+          logger.warn('⚠️  Falling back to in-memory cache');
 
           // Fallback to in-memory cache
           return {

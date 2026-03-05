@@ -7,6 +7,7 @@ import {
   Request,
   Headers,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -15,6 +16,8 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
@@ -33,13 +36,16 @@ export class AuthController {
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
     try {
-      console.log('[AuthController] Login attempt for:', loginDto.email);
+      this.logger.log(`Login attempt for: ${loginDto.email}`);
       const result = await this.authService.login(loginDto);
 
-      console.log('[AuthController] Login successful');
+      this.logger.log('Login successful');
       return result;
     } catch (error: any) {
-      console.error('[AuthController] Login error:', error);
+      this.logger.error(
+        'Login error',
+        (error as Error)?.stack || String(error),
+      );
       return {
         success: false,
         message: error.message || 'Login failed',

@@ -12,6 +12,7 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -22,6 +23,8 @@ import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 
 @Controller('posts')
 export class PostsController {
+  private readonly logger = new Logger(PostsController.name);
+
   constructor(private readonly postsService: PostsService) {}
 
   @HttpPost()
@@ -43,10 +46,9 @@ export class PostsController {
     @Query('limit') limit: string = '5',
     @Request() req: any,
   ) {
-    console.log('\n📰 [PostsController] ============ GET POSTS ============');
-    console.log('📰 [PostsController] Page:', page);
-    console.log('📰 [PostsController] Limit:', limit);
-    console.log('📰 [PostsController] User ID:', req.user?.userId);
+    this.logger.log(
+      `📰 GET posts: userId=${req.user?.userId}, page=${page}, limit=${limit}`,
+    );
 
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 5;
@@ -57,8 +59,9 @@ export class PostsController {
       req.user.userId,
     );
 
-    console.log('✅ [PostsController] Returned', result.posts.length, 'posts');
-    console.log('✅ [PostsController] Has more:', result.hasMore);
+    this.logger.log(
+      `✅ Returned ${result.posts.length} posts (hasMore=${result.hasMore})`,
+    );
 
     return result;
   }
@@ -119,10 +122,12 @@ export class PostsController {
     @Body() updateData: { content: string },
     @Request() req: any,
   ) {
-    console.log('\n✏️ [PostsController] ============ UPDATE POST ============');
-    console.log('✏️ [PostsController] Post ID:', postId);
-    console.log('✏️ [PostsController] User ID:', req.user?.userId);
-    console.log('✏️ [PostsController] New content:', updateData?.content);
+    this.logger.log(
+      `✏️ UPDATE post: postId=${postId}, userId=${req.user?.userId}`,
+    );
+    this.logger.debug(
+      `✏️ New content: ${(updateData?.content || '').slice(0, 100)}`,
+    );
 
     const updatedPost = await this.postsService.updatePost(
       postId,
@@ -130,7 +135,7 @@ export class PostsController {
       updateData?.content ?? '',
     );
 
-    console.log('✅ [PostsController] Post updated successfully');
+    this.logger.log('✅ Post updated successfully');
 
     return {
       message: 'Post updated successfully',
@@ -161,13 +166,12 @@ export class PostsController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   async deletePost(@Param('id') postId: string, @Request() req: any) {
-    console.log('\n🗑️ [PostsController] ============ DELETE POST ============');
-    console.log('🗑️ [PostsController] Post ID:', postId);
-    console.log('🗑️ [PostsController] User ID:', req.user?.userId);
+    this.logger.log(
+      `🗑️ DELETE post: postId=${postId}, userId=${req.user?.userId}`,
+    );
 
     await this.postsService.deletePost(postId, req.user.userId);
-
-    console.log('✅ [PostsController] Post deleted successfully');
+    this.logger.log('✅ Post deleted successfully');
 
     return {
       message: 'Post deleted successfully',
@@ -179,14 +183,14 @@ export class PostsController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   async toggleLike(@Param('id') postId: string, @Request() req: any) {
-    console.log('\n❤️ [PostsController] ============ TOGGLE LIKE ============');
-    console.log('❤️ [PostsController] Post ID:', postId);
-    console.log('❤️ [PostsController] User ID:', req.user?.userId);
+    this.logger.log(
+      `❤️ TOGGLE like: postId=${postId}, userId=${req.user?.userId}`,
+    );
 
     const result = await this.postsService.toggleLike(postId, req.user.userId);
-
-    console.log('✅ [PostsController] Like toggled:', result.isLiked);
-    console.log('✅ [PostsController] Likes count:', result.likesCount);
+    this.logger.log(
+      `✅ Like toggled: isLiked=${result.isLiked}, likesCount=${result.likesCount}`,
+    );
 
     return result;
   }

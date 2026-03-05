@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -13,6 +14,8 @@ import { ImageUploadConfig } from '../../common/config/image-upload.config';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     private readonly s3Service: S3Service,
@@ -133,7 +136,13 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<User> {
-    console.log(dto);
+    this.logger.debug(
+      `Updating profile for user ${userId} with dto: ${JSON.stringify(
+        dto,
+        null,
+        2,
+      )}`,
+    );
     const user = await this.findOne(userId);
 
     const updateData: Partial<User> = {};
