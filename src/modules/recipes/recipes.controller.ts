@@ -24,6 +24,9 @@ import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { S3Service } from '../../common/services/s3.service';
 import { ImageUploadConfig } from '../../common/config/image-upload.config';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { RecipeScraperService } from './services/recipe-scraper.service';
+import { ImportRecipeDto } from './dto/import-recipe.dto';
+import { ScrapeRecipeDto } from './dto/scrape-recipe.dto';
 
 @Controller('recipes')
 export class RecipesController {
@@ -31,6 +34,7 @@ export class RecipesController {
     private readonly recipesService: RecipesService,
     private readonly s3Service: S3Service,
     private readonly subscriptionsService: SubscriptionsService,
+    private readonly scraperService: RecipeScraperService,
   ) {}
 
   @Post()
@@ -55,6 +59,83 @@ export class RecipesController {
     return {
       success: true,
       message: 'Recipe created successfully',
+      data: recipe,
+    };
+  }
+
+  // Scrape a recipe URL and return data only (no creation)
+  @Post('scrape')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async scrapeRecipe(
+    @Request() req,
+    @Body() scrapeDto: ScrapeRecipeDto,
+  ): Promise<{
+    success: boolean;
+    data: {
+      title: string;
+      description?: string;
+      prepTime?: number;
+      cookTime?: number;
+      totalTime?: number;
+      servings?: number;
+      ingredients: string[];
+      instructions: string[];
+      imageUrl?: string;
+      category?: string;
+      cuisine?: string;
+      author?: string;
+      sourceUrl: string;
+    };
+  }> {
+    console.log('🔍 [RecipesController] Scrape request', {
+      userId: req.user?.userId,
+      url: scrapeDto.url,
+    });
+
+    const scrapedData = await this.scraperService.scrapeRecipeFromUrl(
+      scrapeDto.url,
+    );
+
+    return {
+      success: true,
+      data: scrapedData,
+    };
+  }
+
+  // Import a single recipe by scraping a public URL
+  @Post('import-url')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async importRecipeFromUrl(@Request() req, @Body() importDto: ImportRecipeDto) {
+    const scrapedRecipe = await this.scraperService.scrapeRecipeFromUrl(importDto.url);
+
+    const createPayload = {
+      ownerId: req.user.userId,
+      ownerName: req.user.name,
+      userId: req.user.userId,
+      title: scrapedRecipe.title,
+      description: scrapedRecipe.description || 'Imported recipe',
+      ingredients: scrapedRecipe.ingredients,
+      instructions: scrapedRecipe.instructions,
+      category: scrapedRecipe.category || 'Imported',
+      prepTime: scrapedRecipe.prepTime ?? scrapedRecipe.totalTime ?? 0,
+      cookTime: scrapedRecipe.cookTime ?? 0,
+      servings: scrapedRecipe.servings ?? 1,
+      difficulty: 'easy' as const,
+      featuredImage: scrapedRecipe.imageUrl || undefined,
+      images: [],
+      isFavorite: false,
+      featured: false,
+      rating: undefined,
+      steps: undefined,
+    };
+
+    const recipe = await this.recipesService.create(createPayload);
+
+    return {
+      success: true,
+      message: 'Recipe imported successfully',
       data: recipe,
     };
   }

@@ -6,6 +6,7 @@ import { Recipe, RecipeSchema } from './entities/recipe.entity';
 import { S3Module } from '../../common/services/s3.module';
 import { UsersModule } from '../users/users.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
+import { RecipeScraperService } from './services/recipe-scraper.service';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
     SubscriptionsModule,
   ],
   controllers: [RecipesController],
-  providers: [RecipesService],
+  providers: [RecipesService, RecipeScraperService],
   exports: [RecipesService],
 })
 export class RecipesModule {}
