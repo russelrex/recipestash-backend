@@ -422,4 +422,107 @@ export class RecipesController {
       throw error;
     }
   }
+
+  /**
+   * Upload a generic recipe image (featured/additional) for use in the recipe editor.
+   * Exposed as POST /api/recipes/upload-image
+   * Body: multipart/form-data with a single file field named "file".
+   * Auth: requires valid JWT (JwtAuthGuard).
+   */
+  @Post('upload-image')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadRecipeImage(
+    @Request() req,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    url: string;
+    filename: string;
+    size: number;
+  }> {
+    try {
+      this.logger.log(
+        `[Recipe image] Upload request from user: ${req.user?.userId}`,
+      );
+      this.logger.debug('[Recipe image] File details', {
+        fieldname: file?.fieldname,
+        originalname: file?.originalname,
+        mimetype: file?.mimetype,
+        size: file?.size,
+      });
+
+      if (!file || !file.buffer) {
+        this.logger.warn('[Recipe image] No file provided in request');
+        throw new BadRequestException({
+          message:
+            'No file provided. Send multipart/form-data with field "file".',
+        });
+      }
+
+      const allowedMimeTypes = ImageUploadConfig.allowedFormats;
+      if (!file.mimetype || !allowedMimeTypes.includes(file.mimetype)) {
+        this.logger.warn(
+          `[Recipe image] Invalid file type: ${file.mimetype}`,
+        );
+        throw new BadRequestException({
+          message:
+            'Invalid file type. Only JPEG, PNG, and WebP images are allowed.',
+        });
+      }
+
+      const maxSize = ImageUploadConfig.maxFileSize;
+      if (file.size > maxSize) {
+        this.logger.warn(
+          `[Recipe image] File too large: ${file.size} bytes`,
+        );
+        throw new BadRequestException({
+          message: `File too large. Maximum size is ${
+            maxSize / (1024 * 1024)
+          }MB.`,
+        });
+      }
+
+      const base64Data = `data:${file.mimetype};base64,${file.buffer.toString(
+        'base64',
+      )}`;
+
+      this.logger.log('[Recipe image] Uploading to S3...');
+      const imageUrl = await this.s3Service.uploadImage(
+        base64Data,
+        ImageUploadConfig.folders.additionalImages,
+        'additional',
+      );
+
+      this.logger.log(
+        `[Recipe image] Upload successful for user: ${req.user?.userId}`,
+      );
+      this.logger.debug(`[Recipe image] URL: ${imageUrl}`);
+
+      return {
+        success: true,
+        message: 'Recipe image uploaded',
+        url: imageUrl,
+        filename: file.originalname || 'recipe-image.jpg',
+        size: file.size,
+      };
+    } catch (error: any) {
+      // Known validation/auth errors are already HttpExceptions; rethrow as-is.
+      if (error instanceof BadRequestException || error?.status === 401) {
+        throw error;
+      }
+
+      this.logger.error(
+        `[Recipe image] Upload failed: ${error?.message ?? String(error)}`,
+        error?.stack ?? '',
+      );
+      throw new BadRequestException({
+        message:
+          error?.message?.toString?.() ||
+          'Recipe image upload failed. Please try again.',
+      });
+    }
+  }
 }
