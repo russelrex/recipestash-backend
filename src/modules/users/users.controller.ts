@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  InternalServerErrorException,
   Logger,
   Param,
   Post,
@@ -15,11 +16,11 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UsersService } from './users.service';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { ImageUploadConfig } from '../../common/config/image-upload.config';
 import { S3Service } from '../../common/services/s3.service';
 
@@ -126,78 +127,92 @@ export class UsersController {
     };
   }
 
+  /**
+   * Profile picture upload. Requires JWT. Accepts multipart/form-data with field "file".
+   * Returns JSON { url, filename, size } on success. Always responds with JSON.
+   */
   @Post('profile-picture')
   @HttpCode(HttpStatus.OK)
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadImage(@UploadedFile() file: Express.Multer.File) {
-    this.logger.log('📸 Image upload request received');
-    this.logger.debug(
-      `📸 File details: ${JSON.stringify(
-        {
-          fieldname: file?.fieldname,
-          originalname: file?.originalname,
-          mimetype: file?.mimetype,
-          size: file?.size,
-        },
-        null,
-        2,
-      )}`,
-    );
-
-    if (!file) {
-      this.logger.warn('❌ No file provided in image upload request');
-      throw new BadRequestException('No file provided');
-    }
-
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: ImageUploadConfig.maxFileSize },
+    }),
+  )
+  async uploadProfilePicture(
+    @Request() req: { user: { userId: string } },
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<{ url: string; filename: string; size: number }> {
     try {
-      // Validate file type
-      const allowedMimeTypes = ImageUploadConfig.allowedFormats;
-      if (!allowedMimeTypes.includes(file.mimetype)) {
-        this.logger.warn(
-          `❌ Invalid profile image file type: ${file.mimetype}`,
-        );
-        throw new BadRequestException(
-          'Invalid file type. Only JPEG, PNG, and WebP images are allowed.',
-        );
+      this.logger.log(
+        `[Profile picture] Upload request from user: ${req.user?.userId}`,
+      );
+
+      if (!file || !file.buffer) {
+        this.logger.warn('[Profile picture] No file or buffer in request');
+        throw new BadRequestException({
+          message: 'No file provided. Send multipart/form-data with field "file".',
+        });
       }
 
-      // Validate file size (5MB max)
+      const allowedMimeTypes = ImageUploadConfig.allowedFormats;
+      if (!file.mimetype || !allowedMimeTypes.includes(file.mimetype)) {
+        this.logger.warn(
+          `[Profile picture] Invalid mimetype: ${file.mimetype}`,
+        );
+        throw new BadRequestException({
+          message:
+            'Invalid file type. Only JPEG, PNG, and WebP images are allowed.',
+        });
+      }
+
       const maxSize = ImageUploadConfig.maxFileSize;
       if (file.size > maxSize) {
         this.logger.warn(
-          `❌ Profile image file too large: ${file.size} bytes`,
+          `[Profile picture] File too large: ${file.size} bytes`,
         );
-        throw new BadRequestException(
-          `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`,
-        );
+        throw new BadRequestException({
+          message: `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`,
+        });
       }
 
-      // Convert file buffer to base64 for S3Service
       const base64Data = `data:${file.mimetype};base64,${file.buffer.toString(
         'base64',
       )}`;
 
-      this.logger.log('📤 Uploading profile image to S3...');
+      this.logger.log('[Profile picture] Uploading to S3...');
       const imageUrl = await this.s3Service.uploadImage(
         base64Data,
-        ImageUploadConfig.folders.featuredImages,
-        'featured',
+        ImageUploadConfig.folders.profiles,
+        'additional',
       );
 
-      this.logger.log('✅ Profile image upload successful');
-      this.logger.debug(`✅ Profile image URL: ${imageUrl}`);
+      this.logger.log(
+        `[Profile picture] Upload success for user: ${req.user?.userId}`,
+      );
 
       return {
         url: imageUrl,
-        filename: file.originalname,
+        filename: file.originalname || 'profile.jpg',
         size: file.size,
       };
     } catch (error: any) {
+      if (
+        error instanceof BadRequestException ||
+        error?.status === 400 ||
+        error?.status === 401
+      ) {
+        throw error;
+      }
       this.logger.error(
-        '❌ Profile image upload failed',
-        error?.stack || String(error),
+        `[Profile picture] Upload failed: ${error?.message ?? String(error)}`,
+        error?.stack ?? '',
       );
-      throw error;
+      throw new InternalServerErrorException({
+        message:
+          error?.message?.toString?.() ||
+          'Profile picture upload failed. Please try again.',
+      });
     }
   }
 }
