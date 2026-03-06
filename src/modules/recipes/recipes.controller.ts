@@ -423,12 +423,6 @@ export class RecipesController {
     }
   }
 
-  /**
-   * Upload a generic recipe image (featured/additional) for use in the recipe editor.
-   * Exposed as POST /api/recipes/upload-image
-   * Body: multipart/form-data with a single file field named "file".
-   * Auth: requires valid JWT (JwtAuthGuard).
-   */
   @Post('upload-image')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
